@@ -5,7 +5,6 @@ import { ThemeProvider, createTheme } from "@mui/material/styles"
 import CssBaseline from "@mui/material/CssBaseline"
 import Layout from "@/components/layout/Layout"
 import Login from "@/pages/Login"
-import Register from "@/pages/Register"
 import Dashboard from "@/pages/Dashboard"
 import Sales from "@/pages/Sales"
 import Purchases from "@/pages/Purchases"
@@ -105,8 +104,6 @@ const AppRoutes = () => {
     <Routes>
       {/* Rutas públicas */}
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/" replace /> : <Register />} />
-
       {/* Rutas protegidas */}
       <Route
         path="/*"
@@ -119,10 +116,12 @@ const AppRoutes = () => {
         {/* Rutas anidadas dentro del layout */}
         <Route index element={<Dashboard />} />
         <Route path="ventas" element={<Sales />} />
+        <Route path="compras" element={<Purchases />} />
         <Route path="stock" element={<Stock />} />
         <Route path="categorias" element={<Categories />} />
         <Route path="caja" element={<Cash />} />
         <Route path="clientes" element={<Customers />} />
+        <Route path="proveedores" element={<Suppliers />} />
 
         {/* Rutas que requieren permisos de administrador */}
         <Route

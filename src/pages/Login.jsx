@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { EyeIcon, EyeSlashIcon, ExclamationCircleIcon } from "@heroicons/react/24/outline"
 import { useAuth } from "@/contexts/AuthContext"
 import LoadingButton from "../components/common/LoandingButton"
-import Card from "@/components/common/Card" // Asumiendo que tienes un componente Card
+import Card from "@/components/common/Card"
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -109,10 +109,7 @@ const Login = () => {
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Iniciar Sesión</h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            ¿No tienes cuenta?{" "}
-            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
-              Regístrate aquí
-            </Link>
+            Ingresa tus credenciales para acceder al sistema
           </p>
         </div>
 

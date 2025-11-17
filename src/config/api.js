@@ -131,7 +131,7 @@ api.interceptors.response.use(
           console.warn("🔐 Token expirado o inválido")
           localStorage.removeItem("token")
           localStorage.removeItem("user")
-          if (window.location.pathname !== "/login" && window.location.pathname !== "/register") {
+          if (window.location.pathname !== "/login") {
             window.location.href = "/login"
           }
           break

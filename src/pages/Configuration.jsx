@@ -7,6 +7,7 @@ import LoadingButton from "../components/common/LoandingButton"
 import { useToast } from "@/contexts/ToastContext"
 import BusinessConfigTab from "@/components/config/BusinessConfigTab"
 import TicketConfigTab from "@/components/config/TicketConfigTab"
+import UserManagementTab from "@/components/config/UserManagementTab"
 import {
   UserCircleIcon,
   KeyIcon,
@@ -15,6 +16,7 @@ import {
   EyeSlashIcon,
   BuildingStorefrontIcon,
   ReceiptPercentIcon,
+  UsersIcon,
 } from "@heroicons/react/24/outline"
 
 const Configuration = () => {
@@ -133,6 +135,7 @@ const Configuration = () => {
     { id: "password", name: "Cambiar Contraseña", icon: KeyIcon },
     { id: "business", name: "Datos del Negocio", icon: BuildingStorefrontIcon },
     { id: "tickets", name: "Configuración de Tickets", icon: ReceiptPercentIcon },
+    ...(user?.role === "admin" ? [{ id: "users", name: "Usuarios", icon: UsersIcon }] : []),
     { id: "settings", name: "Configuración", icon: Cog6ToothIcon },
   ]
 
@@ -146,7 +149,7 @@ const Configuration = () => {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -348,6 +351,8 @@ const Configuration = () => {
         {activeTab === "business" && <BusinessConfigTab />}
 
         {activeTab === "tickets" && <TicketConfigTab />}
+
+        {activeTab === "users" && user?.role === "admin" && <UserManagementTab />}
 
         {activeTab === "settings" && (
           <Card>

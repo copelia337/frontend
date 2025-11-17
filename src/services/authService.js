@@ -51,53 +51,6 @@ export const authService = {
     }
   },
 
-  // Registro
-  register: async (userData) => {
-    try {
-      console.log("🔄 Enviando datos de registro...")
-      const response = await api.post("/auth/register", userData)
-
-      console.log("📡 Respuesta de registro recibida:", response.status)
-
-      if (response.data.success) {
-        const { token, user } = response.data.data
-
-        // Guardar token y usuario
-        localStorage.setItem(TOKEN_KEY, token)
-        localStorage.setItem(USER_KEY, JSON.stringify(user))
-
-        // Configurar header de autorización
-        api.defaults.headers.common["Authorization"] = `Bearer ${token}`
-
-        console.log("✅ Registro exitoso, token guardado")
-        return {
-          success: true,
-          data: { user, token },
-        }
-      } else {
-        console.log("❌ Registro fallido:", response.data.message)
-        return {
-          success: false,
-          error: response.data.message || "Error en el registro",
-        }
-      }
-    } catch (error) {
-      console.error("💥 Error en registro:", error)
-
-      if (error.response?.data?.message) {
-        return {
-          success: false,
-          error: error.response.data.message,
-        }
-      }
-
-      return {
-        success: false,
-        error: "Error de conexión. Verifica tu conexión a internet.",
-      }
-    }
-  },
-
   // Logout
   logout: async () => {
     try {

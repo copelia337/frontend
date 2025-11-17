@@ -151,48 +151,6 @@ export const AuthProvider = ({ children }) => {
     [toast],
   )
 
-  // Registro con mejor manejo de errores
-  const register = useCallback(
-    async (userData) => {
-      dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true })
-      dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR })
-
-      try {
-        console.log("🔄 Iniciando proceso de registro...")
-        const result = await authService.register(userData)
-
-        console.log("📊 Resultado del registro:", result)
-
-        if (result.success) {
-          dispatch({ type: AUTH_ACTIONS.SET_USER, payload: result.data.user })
-          toast.success(`¡Bienvenido al sistema, ${result.data.user.name}!`, {
-            title: "Registro exitoso",
-            duration: 6000,
-          })
-          console.log("✅ Registro completado exitosamente")
-          return { success: true }
-        } else {
-          const errorMessage = result.error || "Error desconocido en el registro"
-          console.log("❌ Registro fallido:", errorMessage)
-          dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: errorMessage })
-          toast.error(errorMessage, {
-            title: "Error en el registro",
-          })
-          return { success: false, error: errorMessage }
-        }
-      } catch (error) {
-        console.error("💥 Error inesperado en registro:", error)
-        const errorMessage = error.message || "Error de conexión. Verifica tu conexión a internet."
-        dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: errorMessage })
-        toast.error(errorMessage, {
-          title: "Error de conexión",
-        })
-        return { success: false, error: errorMessage }
-      }
-    },
-    [toast],
-  )
-
   // Logout
   const logout = useCallback(async () => {
     dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true })
@@ -267,7 +225,6 @@ export const AuthProvider = ({ children }) => {
   const value = {
     ...state,
     login,
-    register,
     logout,
     changePassword,
     updateProfile,
