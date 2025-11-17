@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react"
 import { useProductStore } from "../../stores/productStore"
 import { useSalesStore } from "../../stores/salesStore"
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts"
 import { MagnifyingGlassIcon, QrCodeIcon } from "@heroicons/react/24/outline"
 
 const ProductSearch = ({ onSearchChange, searchTerm }) => {
@@ -13,6 +14,15 @@ const ProductSearch = ({ onSearchChange, searchTerm }) => {
 
   const { getProductByBarcode } = useProductStore()
   const { addToCart } = useSalesStore()
+  const { registerFocusProductSearch } = useKeyboardShortcuts()
+
+  useEffect(() => {
+    registerFocusProductSearch(() => {
+      if (inputRef.current) {
+        inputRef.current.focus()
+      }
+    })
+  }, [registerFocusProductSearch])
 
   useEffect(() => {
     setLocalSearchTerm(searchTerm)
@@ -101,7 +111,7 @@ const ProductSearch = ({ onSearchChange, searchTerm }) => {
             placeholder={
               isSearchingBarcode
                 ? "Escanea o ingresa el código de barras..."
-                : "Buscar productos (mínimo 2 caracteres)..." // Indicar mínimo de caracteres
+                : "Buscar productos (mínimo 2 caracteres)..."
             }
             value={localSearchTerm}
             onChange={handleInputChange}

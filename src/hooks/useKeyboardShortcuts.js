@@ -8,7 +8,7 @@ import { useCashStore } from "@/stores/cashStore"
  * Hook personalizado para manejar atajos de teclado globales
  * 
  * Atajos disponibles:
- * - F1: Ir a Ventas
+ * - F1: Ir a Ventas y enfocar buscador de productos. Si está en Ventas, abre modal de procesar venta
  * - F5: Ir a Historial de Ventas (Reportes)
  * - F6: Ir a Caja y abrir modal de cierre de caja si está abierta
  * - F10: Ir a Stock y abrir modal para agregar producto, con foco en nombre
@@ -24,6 +24,8 @@ export const useKeyboardShortcuts = () => {
   const openProductFormRef = useRef(null)
   const openCloseFormRef = useRef(null)
   const focusNameInputRef = useRef(null)
+  const focusProductSearchRef = useRef(null)
+  const openProcessSaleRef = useRef(null)
 
   const handleKeyPress = useCallback(
     async (event) => {
@@ -38,12 +40,24 @@ export const useKeyboardShortcuts = () => {
       // Detectar las teclas F1, F5, F6, F10, F12
       const key = event.key
 
-      // F1 - Ir a Ventas
       if (key === "F1") {
         event.preventDefault()
-        if (location.pathname !== "/ventas") {
+        
+        if (location.pathname === "/ventas") {
+          // Si ya está en ventas, abrir modal de procesar venta
+          if (openProcessSaleRef.current) {
+            openProcessSaleRef.current()
+            showToast("Abriendo modal de procesar venta", "info")
+          }
+        } else {
+          // Si no está en ventas, navegar y enfocar buscador
           navigate("/ventas")
           showToast("Navegando a Ventas", "info")
+          setTimeout(() => {
+            if (focusProductSearchRef.current) {
+              focusProductSearchRef.current()
+            }
+          }, 300)
         }
         return
       }
@@ -154,7 +168,7 @@ export const useKeyboardShortcuts = () => {
   // Retornar información sobre los atajos disponibles e referencias para usar desde otros componentes
   return {
     shortcuts: [
-      { key: "F1", action: "Ir a Ventas", path: "/ventas" },
+      { key: "F1", action: "Ir a Ventas / Procesar Venta", path: "/ventas" },
       { key: "F5", action: "Historial de Ventas", path: "/reportes", tab: "history" },
       { key: "F6", action: "Ver Cierre de Caja", path: "/caja", requiresOpen: true },
       { key: "F10", action: "Carga de Productos", path: "/stock", openModal: true },
@@ -168,6 +182,12 @@ export const useKeyboardShortcuts = () => {
     },
     registerOpenCloseForm: (callback) => {
       openCloseFormRef.current = callback
+    },
+    registerFocusProductSearch: (callback) => {
+      focusProductSearchRef.current = callback
+    },
+    registerOpenProcessSale: (callback) => {
+      openProcessSaleRef.current = callback
     },
   }
 }

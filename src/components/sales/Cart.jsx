@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSalesStore } from "../../stores/salesStore"
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts"
 import { formatCurrency, formatStock, validateQuantity, getUnitLabel } from "../../lib/formatters"
 import { PAYMENT_METHODS } from "../../lib/constants"
 import Button from "../common/Button"
@@ -25,20 +26,28 @@ const Cart = () => {
     setShowPaymentModal,
   } = useSalesStore()
 
+  const { registerOpenProcessSale } = useKeyboardShortcuts()
 
   const [editingQuantity, setEditingQuantity] = useState(null)
   const [tempQuantity, setTempQuantity] = useState("")
   
-   const finalTotal = cartTotal // SIN descuentos
+  const finalTotal = cartTotal
 
+  useEffect(() => {
+    registerOpenProcessSale(() => {
+      if (cart.length > 0) {
+        setShowPaymentModal(true)
+      }
+    })
+  }, [registerOpenProcessSale, cart.length, setShowPaymentModal])
 
   const handleQuantityChange = (item, delta) => {
     const currentQuantity = item.quantity
     let newQuantity
 
     if (item.unit_type === "kg") {
-      newQuantity = Math.max(0.01, currentQuantity + delta * 0.01) // Changed delta from 0.001 to 0.01
-      newQuantity = Math.round(newQuantity * 100) / 100 // Round to 2 decimal places
+      newQuantity = Math.max(0.01, currentQuantity + delta * 0.01)
+      newQuantity = Math.round(newQuantity * 100) / 100
     } else {
       newQuantity = Math.max(1, currentQuantity + delta)
     }
@@ -50,20 +59,17 @@ const Cart = () => {
 
   const startEditingQuantity = (item) => {
     setEditingQuantity(item.id)
-    // Format tempQuantity to 2 decimal places for kg products
     setTempQuantity(item.unit_type === "kg" ? item.quantity.toFixed(2) : item.quantity.toString())
   }
 
   const confirmQuantityEdit = (item) => {
     const newQuantity = Number.parseFloat(tempQuantity)
 
-    // Round newQuantity to 2 decimal places for kg products
     const roundedNewQuantity = item.unit_type === "kg" ? Math.round(newQuantity * 100) / 100 : newQuantity;
 
     if (validateQuantity(roundedNewQuantity, item.unit_type) && roundedNewQuantity > 0 && roundedNewQuantity <= item.stock) {
       updateCartItemQuantity(item.id, roundedNewQuantity)
     } else {
-      // Revert to original quantity if invalid
       setTempQuantity(item.unit_type === "kg" ? item.quantity.toFixed(2) : item.quantity.toString())
     }
 
@@ -110,7 +116,7 @@ const Cart = () => {
         </div>
       </div>
 
-      {/* Items del carrito - REDISEÑADO más minimalista */}
+      {/* Items del carrito */}
       <div className="flex-1 overflow-y-auto">
         {cart.map((item) => (
           <div
@@ -146,7 +152,7 @@ const Cart = () => {
                       onClick={() => handleQuantityChange(item, -1)}
                       className="p-0.5 rounded-md hover:bg-gray-200 text-gray-600"
                       disabled={
-                        (item.unit_type === "kg" && item.quantity <= 0.01) || // Changed from 0.001 to 0.01
+                        (item.unit_type === "kg" && item.quantity <= 0.01) ||
                         (item.unit_type === "unidades" && item.quantity <= 1)
                       }
                     >
@@ -165,8 +171,8 @@ const Cart = () => {
                           if (e.key === "Escape") cancelQuantityEdit()
                         }}
                         className="w-14 text-center text-xs font-medium border border-gray-300 rounded px-1 py-0.5"
-                        step={item.unit_type === "kg" ? "0.01" : "1"} // Changed step to 0.01
-                        min={item.unit_type === "kg" ? "0.01" : "1"} // Changed min to 0.01
+                        step={item.unit_type === "kg" ? "0.01" : "1"}
+                        min={item.unit_type === "kg" ? "0.01" : "1"}
                         max={item.stock}
                         autoFocus
                       />
@@ -198,7 +204,7 @@ const Cart = () => {
 
                   {/* Subtotal del item */}
                   <div className="text-right text-sm font-semibold text-gray-900">
-                    {formatCurrency(item.totalPrice)} {/* Changed to item.totalPrice */}
+                    {formatCurrency(item.totalPrice)}
                   </div>
                 </div>
 
@@ -212,7 +218,7 @@ const Cart = () => {
         ))}
       </div>
 
-      {/* Totales - REDISEÑADO más elegante SIN descuentos */}
+      {/* Totales */}
       <div className="px-4 py-3 border-t border-gray-200 bg-gradient-to-r from-gray-50 to-slate-50 flex-shrink-0">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
@@ -246,7 +252,7 @@ const Cart = () => {
           onClick={() => setShowPaymentModal(true)}
           className="w-full mt-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
           size="lg"
-          disabled={cart.length === 0} // Only disable if cart is empty
+          disabled={cart.length === 0}
         >
           {"Procesar Venta"}
         </Button>

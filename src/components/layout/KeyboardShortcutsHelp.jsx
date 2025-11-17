@@ -12,8 +12,8 @@ const KeyboardShortcutsHelp = ({ isOpen, onClose }) => {
   const shortcuts = [
     {
       key: "F1",
-      action: "Ir a Ventas",
-      description: "Navega a la página de ventas para procesar transacciones",
+      action: "Ir a Ventas / Procesar Venta",
+      description: "Navega a ventas y enfoca el buscador. Si estás en ventas, abre el modal de procesar venta",
     },
     {
       key: "F5",
