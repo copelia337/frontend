@@ -4,8 +4,10 @@ import { useState, useEffect } from "react"
 import { Dialog, Transition } from "@headlessui/react"
 import { Fragment } from "react"
 import { useSalesStore } from "../../stores/salesStore"
+import { useConfigStore } from "../../stores/configStore"
 import { formatCurrency, formatDateTime, formatQuantity } from "../../lib/formatters"
 import { useToast } from "../../contexts/ToastContext"
+import ticketPrintService from "../../services/ticketPrintService"
 import {
   XMarkIcon,
   UserIcon,
@@ -28,18 +30,34 @@ import Button from "../common/Button"
 
 const SaleDetailModal = ({ isOpen, onClose, saleId, onSaleUpdated }) => {
   const { fetchSaleById, cancelSale, loading } = useSalesStore()
+  const { businessConfig, ticketConfig, fetchBusinessConfig, fetchTicketConfig } = useConfigStore()
   const { showToast } = useToast()
   const [sale, setSale] = useState(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [cancelReason, setCancelReason] = useState("")
   const [cancelLoading, setCancelLoading] = useState(false)
+  const [showPrintModal, setShowPrintModal] = useState(false)
+  const [printing, setPrinting] = useState(false)
+  const [printCopies, setPrintCopies] = useState(1)
 
   useEffect(() => {
     if (isOpen && saleId) {
       loadSaleDetail()
+      if (!businessConfig?.business_name) {
+        fetchBusinessConfig()
+      }
+      if (!ticketConfig?.enable_print) {
+        fetchTicketConfig()
+      }
     }
   }, [isOpen, saleId])
+
+  useEffect(() => {
+    if (showPrintModal && ticketConfig?.copies_count) {
+      setPrintCopies(ticketConfig.copies_count)
+    }
+  }, [showPrintModal, ticketConfig])
 
   const loadSaleDetail = async () => {
     setLoadingDetail(true)
@@ -51,6 +69,105 @@ const SaleDetailModal = ({ isOpen, onClose, saleId, onSaleUpdated }) => {
       onClose()
     } finally {
       setLoadingDetail(false)
+    }
+  }
+
+  const handlePrintTicket = async () => {
+    if (!sale) return
+
+    setPrinting(true)
+    try {
+      // Configurar el servicio de impresión
+      ticketPrintService.configure(
+        ticketConfig.printer_name,
+        ticketConfig.paper_width
+      )
+
+      // Preparar datos de venta en el formato esperado por el servicio
+      const saleData = {
+        sale: sale,
+        items: sale.items || []
+      }
+
+      // Imprimir el número de copias configurado
+      for (let i = 0; i < printCopies; i++) {
+        const result = await ticketPrintService.printTicket(
+          saleData,
+          businessConfig,
+          ticketConfig
+        )
+
+        if (!result.success) {
+          throw new Error(result.error)
+        }
+
+        // Pequeña pausa entre copias
+        if (i < printCopies - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500))
+        }
+      }
+
+      showToast(
+        printCopies > 1 ? `Se imprimieron ${printCopies} copias correctamente` : "El ticket se imprimió correctamente",
+        "success"
+      )
+
+      setShowPrintModal(false)
+    } catch (error) {
+      console.error("Error al imprimir:", error)
+      showToast(error.message || "No se pudo imprimir el ticket", "error")
+    } finally {
+      setPrinting(false)
+    }
+  }
+
+  const handlePreviewTicket = () => {
+    if (!sale) return
+
+    ticketPrintService.configure(
+      ticketConfig.printer_name,
+      ticketConfig.paper_width
+    )
+
+    const saleData = {
+      sale: sale,
+      items: sale.items || []
+    }
+
+    const result = ticketPrintService.previewTicket(
+      saleData,
+      businessConfig,
+      ticketConfig
+    )
+
+    if (!result.success) {
+      showToast(result.error || "No se pudo mostrar la vista previa", "error")
+    }
+  }
+
+  const handleDownloadTicket = () => {
+    if (!sale) return
+
+    ticketPrintService.configure(
+      ticketConfig.printer_name,
+      ticketConfig.paper_width
+    )
+
+    const saleData = {
+      sale: sale,
+      items: sale.items || []
+    }
+
+    const result = ticketPrintService.downloadTicket(
+      saleData,
+      businessConfig,
+      ticketConfig
+    )
+
+    if (result.success) {
+      showToast("El ticket se descargó correctamente", "success")
+    } else {
+      showToast(result.error || "No se pudo descargar el ticket", "error")
     }
   }
 
@@ -163,8 +280,12 @@ const SaleDetailModal = ({ isOpen, onClose, saleId, onSaleUpdated }) => {
   }
 
   const handlePrint = () => {
-    // Implementar funcionalidad de impresión
-    window.print()
+    if (ticketConfig?.enable_print) {
+      setShowPrintModal(true)
+    } else {
+      // Si no está habilitada la impresión de tickets, usar print del navegador
+      window.print()
+    }
   }
 
   const handleCopyToClipboard = () => {
@@ -192,374 +313,514 @@ Estado: ${sale.status === "completed" ? "Completada" : "Cancelada"}
   }
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm" />
-        </Transition.Child>
+    <>
+      {/* Modal principal de detalle */}
+      <Transition appear show={isOpen} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={onClose}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm" />
+          </Transition.Child>
 
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all flex flex-col max-h-[95vh]">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-100">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                        <EyeIcon className="h-6 w-6 text-white" />
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all flex flex-col max-h-[95vh]">
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex-shrink-0">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                          <EyeIcon className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                      <div>
+                        <Dialog.Title as="h3" className="text-xl font-semibold text-gray-900">
+                          Detalle de Venta #{saleId}
+                        </Dialog.Title>
+                        <div className="flex items-center space-x-2 mt-1">
+                          {sale && getStatusBadge(sale.status)}
+                          <span className="text-sm text-gray-500">
+                            {sale && formatDateTime(sale.created_at)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <Dialog.Title as="h3" className="text-xl font-semibold text-gray-900">
-                        Detalle de Venta #{saleId}
-                      </Dialog.Title>
-                      <div className="flex items-center space-x-2 mt-1">
-                        {sale && getStatusBadge(sale.status)}
-                        <span className="text-sm text-gray-500">
-                          {sale && formatDateTime(sale.created_at)}
-                        </span>
-                      </div>
+
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={handleCopyToClipboard}
+                        className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                        title="Copiar información"
+                      >
+                        <DocumentDuplicateIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={handlePrint}
+                        className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
+                        title="Imprimir"
+                      >
+                        <PrinterIcon className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={onClose}
+                        className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={handleCopyToClipboard}
-                      className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                      title="Copiar información"
-                    >
-                      <DocumentDuplicateIcon className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={handlePrint}
-                      className="p-2 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                      title="Imprimir"
-                    >
-                      <PrinterIcon className="h-5 w-5" />
-                    </button>
-                    <button
-                      onClick={onClose}
-                      className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
-                    >
-                      <XMarkIcon className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
-                  {loadingDetail ? (
-                    <div className="flex items-center justify-center py-12">
-                      <LoadingSpinner size="lg" />
-                      <span className="ml-3 text-gray-600">Cargando detalles...</span>
-                    </div>
-                  ) : sale ? (
-                    <div className="space-y-6">
-                      {/* Información general */}
-                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Información de la venta */}
-                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                          <div className="flex items-center mb-4">
-                            <CheckCircleIcon className="h-6 w-6 text-blue-600 mr-3" />
-                            <h4 className="text-lg font-semibold text-blue-900">Información de la Venta</h4>
-                          </div>
-                          <div className="space-y-3">
-                            <div className="flex justify-between">
-                              <span className="text-sm text-blue-700">Fecha:</span>
-                              <span className="text-sm font-medium text-blue-900">{formatDateTime(sale.created_at)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-blue-700">Cajero:</span>
-                              <span className="text-sm font-medium text-blue-900">{sale.cashier_name || "Sistema"}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-blue-700">Estado:</span>
-                              <span className="text-sm font-medium text-blue-900">
-                                {sale.status === "completed" ? "Completada" : "Cancelada"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Cliente */}
-                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
-                          <div className="flex items-center mb-4">
-                            <UserIcon className="h-6 w-6 text-green-600 mr-3" />
-                            <h4 className="text-lg font-semibold text-green-900">Cliente</h4>
-                          </div>
-                          {sale.customer_name ? (
-                            <div className="space-y-2">
-                              <div className="text-sm font-medium text-green-900">{sale.customer_name}</div>
-                              {sale.customer_email && <div className="text-sm text-green-700">{sale.customer_email}</div>}
-                              {sale.customer_document && (
-                                <div className="text-sm text-green-700">Doc: {sale.customer_document}</div>
-                              )}
-                              {sale.customer_phone && (
-                                <div className="text-sm text-green-700">Tel: {sale.customer_phone}</div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-green-700">Cliente general</div>
-                          )}
-                        </div>
-
-                        {/* Resumen */}
-                        <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-100">
-                          <div className="flex items-center mb-4">
-                            <CreditCardIcon className="h-6 w-6 text-purple-600 mr-3" />
-                            <h4 className="text-lg font-semibold text-purple-900">Resumen</h4>
-                          </div>
-                          <div className="space-y-3">
-                            <div className="flex justify-between">
-                              <span className="text-sm text-purple-700">Subtotal:</span>
-                              <span className="text-sm font-medium text-purple-900">{formatCurrency(sale.subtotal)}</span>
-                            </div>
-                            {sale.discount > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-sm text-purple-700">Descuento:</span>
-                                <span className="text-sm font-medium text-red-600">-{formatCurrency(sale.discount)}</span>
-                              </div>
-                            )}
-                            {sale.tax > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-sm text-purple-700">Impuestos:</span>
-                                <span className="text-sm font-medium text-purple-900">{formatCurrency(sale.tax)}</span>
-                              </div>
-                            )}
-                            <div className="border-t border-purple-200 pt-3">
-                              <div className="flex justify-between">
-                                <span className="text-base font-semibold text-purple-900">Total:</span>
-                                <span className="text-base font-bold text-purple-900">{formatCurrency(sale.total)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                  {/* Content */}
+                  <div className="flex-1 overflow-y-auto p-6">
+                    {loadingDetail ? (
+                      <div className="flex items-center justify-center py-12">
+                        <LoadingSpinner size="lg" />
+                        <span className="ml-3 text-gray-600">Cargando detalles...</span>
                       </div>
+                    ) : sale ? (
+                      <div className="space-y-6">
+                        {/* Información general */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                          {/* Información de la venta */}
+                          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                            <div className="flex items-center mb-4">
+                              <CheckCircleIcon className="h-6 w-6 text-blue-600 mr-3" />
+                              <h4 className="text-lg font-semibold text-blue-900">Información de la Venta</h4>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-blue-700">Fecha:</span>
+                                <span className="text-sm font-medium text-blue-900">{formatDateTime(sale.created_at)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-blue-700">Cajero:</span>
+                                <span className="text-sm font-medium text-blue-900">{sale.cashier_name || "Sistema"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-sm text-blue-700">Estado:</span>
+                                <span className="text-sm font-medium text-blue-900">
+                                  {sale.status === "completed" ? "Completada" : "Cancelada"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
 
-                      {/* Métodos de pago */}
-                      <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
-                        <div className="flex items-center mb-4">
-                          <CreditCardIcon className="h-6 w-6 text-orange-600 mr-3" />
-                          <h4 className="text-lg font-semibold text-orange-900">
-                            {sale.payment_method === "multiple" ? "Métodos de Pago" : "Método de Pago"}
-                          </h4>
-                        </div>
-                        {renderPaymentMethodsDetail(sale)}
-                      </div>
+                          {/* Cliente */}
+                          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                            <div className="flex items-center mb-4">
+                              <UserIcon className="h-6 w-6 text-green-600 mr-3" />
+                              <h4 className="text-lg font-semibold text-green-900">Cliente</h4>
+                            </div>
+                            {sale.customer_name ? (
+                              <div className="space-y-2">
+                                <div className="text-sm font-medium text-green-900">{sale.customer_name}</div>
+                                {sale.customer_email && <div className="text-sm text-green-700">{sale.customer_email}</div>}
+                                {sale.customer_document && (
+                                  <div className="text-sm text-green-700">Doc: {sale.customer_document}</div>
+                                )}
+                                {sale.customer_phone && (
+                                  <div className="text-sm text-green-700">Tel: {sale.customer_phone}</div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-green-700">Cliente general</div>
+                            )}
+                          </div>
 
-                      {/* Productos vendidos */}
-                      <div className="bg-white rounded-xl border border-gray-200">
-                        <div className="px-6 py-4 border-b border-gray-200">
-                          <h4 className="text-lg font-semibold text-gray-900">Productos Vendidos</h4>
+                          {/* Resumen */}
+                          <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-100">
+                            <div className="flex items-center mb-4">
+                              <CreditCardIcon className="h-6 w-6 text-purple-600 mr-3" />
+                              <h4 className="text-lg font-semibold text-purple-900">Resumen</h4>
+                            </div>
+                            <div className="space-y-3">
+                              <div className="flex justify-between">
+                                <span className="text-sm text-purple-700">Subtotal:</span>
+                                <span className="text-sm font-medium text-purple-900">{formatCurrency(sale.subtotal)}</span>
+                              </div>
+                              {sale.discount > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-purple-700">Descuento:</span>
+                                  <span className="text-sm font-medium text-red-600">-{formatCurrency(sale.discount)}</span>
+                                </div>
+                              )}
+                              {sale.tax > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-sm text-purple-700">Impuestos:</span>
+                                  <span className="text-sm font-medium text-purple-900">{formatCurrency(sale.tax)}</span>
+                                </div>
+                              )}
+                              <div className="border-t border-purple-200 pt-3">
+                                <div className="flex justify-between">
+                                  <span className="text-base font-semibold text-purple-900">Total:</span>
+                                  <span className="text-base font-bold text-purple-900">{formatCurrency(sale.total)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Producto
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Cantidad
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Precio Unit.
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Subtotal
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {sale.items?.map((item, index) => (
-                                <tr key={index} className="hover:bg-gray-50">
-                                  <td className="px-6 py-4">
-                                    <div className="flex items-center">
-                                      <div className="h-10 w-10 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center mr-3">
-                                        {item.product_image ? (
-                                          <img
-                                            src={item.product_image || "/placeholder.svg"}
-                                            alt={item.product_name}
-                                            className="h-full w-full object-cover"
-                                          />
-                                        ) : (
-                                          <PhotoIcon className="h-6 w-6 text-gray-400" />
-                                        )}
-                                      </div>
-                                      <div>
-                                        <div className="text-sm font-medium text-gray-900">{item.product_name}</div>
-                                        {item.product_barcode && (
-                                          <div className="text-xs text-gray-500">Código: {item.product_barcode}</div>
-                                        )}
-                                        <div className="flex items-center text-xs text-gray-400 mt-1">
-                                          {item.unit_type === "kg" ? (
-                                            <>
-                                              <ScaleIcon className="h-3 w-3 mr-1 text-blue-600" />
-                                              <span className="text-blue-600">Por kg</span>
-                                            </>
+
+                        {/* Métodos de pago */}
+                        <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
+                          <div className="flex items-center mb-4">
+                            <CreditCardIcon className="h-6 w-6 text-orange-600 mr-3" />
+                            <h4 className="text-lg font-semibold text-orange-900">
+                              {sale.payment_method === "multiple" ? "Métodos de Pago" : "Método de Pago"}
+                            </h4>
+                          </div>
+                          {renderPaymentMethodsDetail(sale)}
+                        </div>
+
+                        {/* Productos vendidos */}
+                        <div className="bg-white rounded-xl border border-gray-200">
+                          <div className="px-6 py-4 border-b border-gray-200">
+                            <h4 className="text-lg font-semibold text-gray-900">Productos Vendidos</h4>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Producto
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Cantidad
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Precio Unit.
+                                  </th>
+                                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Subtotal
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {sale.items?.map((item, index) => (
+                                  <tr key={index} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4">
+                                      <div className="flex items-center">
+                                        <div className="h-10 w-10 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center mr-3">
+                                          {item.product_image ? (
+                                            <img
+                                              src={item.product_image || "/placeholder.svg"}
+                                              alt={item.product_name}
+                                              className="h-full w-full object-cover"
+                                            />
                                           ) : (
-                                            <>
-                                              <CubeIcon className="h-3 w-3 mr-1 text-green-600" />
-                                              <span className="text-green-600">Por unidades</span>
-                                            </>
+                                            <PhotoIcon className="h-6 w-6 text-gray-400" />
                                           )}
                                         </div>
+                                        <div>
+                                          <div className="text-sm font-medium text-gray-900">{item.product_name}</div>
+                                          {item.product_barcode && (
+                                            <div className="text-xs text-gray-500">Código: {item.product_barcode}</div>
+                                          )}
+                                          <div className="flex items-center text-xs text-gray-400 mt-1">
+                                            {item.unit_type === "kg" ? (
+                                              <>
+                                                <ScaleIcon className="h-3 w-3 mr-1 text-blue-600" />
+                                                <span className="text-blue-600">Por kg</span>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <CubeIcon className="h-3 w-3 mr-1 text-green-600" />
+                                                <span className="text-green-600">Por unidades</span>
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
                                       </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-gray-900">
-                                    {formatQuantity(item.quantity, item.unit_type || "unidades")}
-                                  </td>
-                                  <td className="px-6 py-4 text-sm text-gray-900">
-                                    {formatCurrency(item.unit_price)}
-                                    {item.unit_type === "kg" && <span className="text-xs text-blue-600 ml-1">/kg</span>}
-                                  </td>
-                                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                                    {formatCurrency(item.subtotal)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                      {formatQuantity(item.quantity, item.unit_type || "unidades")}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-900">
+                                      {formatCurrency(item.unit_price)}
+                                      {item.unit_type === "kg" && <span className="text-xs text-blue-600 ml-1">/kg</span>}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                                      {formatCurrency(item.subtotal)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
+
+                        {/* Notas */}
+                        {sale.notes && (
+                          <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                            <h4 className="text-lg font-semibold text-gray-900 mb-3">Notas</h4>
+                            <p className="text-sm text-gray-700">{sale.notes}</p>
+                          </div>
+                        )}
                       </div>
-
-                      {/* Notas */}
-                      {sale.notes && (
-                        <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-3">Notas</h4>
-                          <p className="text-sm text-gray-700">{sale.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <p className="text-gray-500">No se pudieron cargar los detalles de la venta</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer */}
-                <div className="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
-                  {sale && sale.status === "completed" && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowCancelConfirm(true)}
-                      className="flex items-center text-red-600 border-red-300 hover:bg-red-50"
-                    >
-                      <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
-                      Cancelar Venta
-                    </Button>
-                  )}
-                  <div className="flex-1"></div>
-                  <Button variant="outline" onClick={onClose} className="py-3 text-sm font-medium rounded-lg">
-                    Cerrar
-                  </Button>
-                </div>
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
-        </div>
-
-        {/* Modal de confirmación de cancelación */}
-        <Transition appear show={showCancelConfirm} as={Fragment}>
-          <Dialog as="div" className="relative z-[100]" onClose={() => setShowCancelConfirm(false)}>
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm" />
-            </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4 text-center">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-300"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-200"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
-                    <div className="p-6">
-                      <div className="flex items-center mb-4">
-                        <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                          <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
-                        </div>
-                        <div className="ml-4 text-left">
-                          <h3 className="text-lg font-semibold text-gray-900">Cancelar Venta</h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Esta acción no se puede deshacer. Se revertirá el stock y los movimientos financieros.
-                          </p>
-                        </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <p className="text-gray-500">No se pudieron cargar los detalles de la venta</p>
                       </div>
-                      <div className="mt-4">
-                        <label htmlFor="cancel-reason" className="block text-sm font-medium text-gray-700 mb-2">
-                          Razón de la cancelación *
-                        </label>
-                        <textarea
-                          id="cancel-reason"
-                          rows={3}
-                          value={cancelReason}
-                          onChange={(e) => setCancelReason(e.target.value)}
-                          placeholder="Ingrese la razón por la cual se cancela esta venta..."
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
+                    {sale && sale.status === "completed" && (
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          setShowCancelConfirm(false)
-                          setCancelReason("")
-                        }}
-                        disabled={cancelLoading}
-                        className="flex-1 py-3 text-sm font-medium rounded-lg"
+                        onClick={() => setShowCancelConfirm(true)}
+                        className="flex items-center text-red-600 border-red-300 hover:bg-red-50"
                       >
-                        Cancelar
+                        <ExclamationTriangleIcon className="h-4 w-4 mr-2" />
+                        Cancelar Venta
                       </Button>
-                      <Button
-                        onClick={handleCancelSale}
-                        loading={cancelLoading}
-                        disabled={!cancelReason.trim()}
-                        className="flex-1 py-3 text-sm font-medium bg-red-600 hover:bg-red-700 rounded-lg"
-                      >
-                        {cancelLoading ? "Cancelando..." : "Confirmar Cancelación"}
-                      </Button>
-                    </div>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
+                    )}
+                    <div className="flex-1"></div>
+                    <Button variant="outline" onClick={onClose} className="py-3 text-sm font-medium rounded-lg">
+                      Cerrar
+                    </Button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
             </div>
-          </Dialog>
-        </Transition>
-      </Dialog>
-    </Transition>
+          </div>
+
+          {/* Modal de confirmación de cancelación */}
+          <Transition appear show={showCancelConfirm} as={Fragment}>
+            <Dialog as="div" className="relative z-[100]" onClose={() => setShowCancelConfirm(false)}>
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0"
+                enterTo="opacity-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100"
+                leaveTo="opacity-0"
+              >
+                <div className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm" />
+              </Transition.Child>
+
+              <div className="fixed inset-0 overflow-y-auto">
+                <div className="flex min-h-full items-center justify-center p-4 text-center">
+                  <Transition.Child
+                    as={Fragment}
+                    enter="ease-out duration-300"
+                    enterFrom="opacity-0 scale-95"
+                    enterTo="opacity-100 scale-100"
+                    leave="ease-in duration-200"
+                    leaveFrom="opacity-100 scale-100"
+                    leaveTo="opacity-0 scale-95"
+                  >
+                    <Dialog.Panel className="w-full max-w-lg transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+                      <div className="p-6">
+                        <div className="flex items-center mb-4">
+                          <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                            <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                          </div>
+                          <div className="ml-4 text-left">
+                            <h3 className="text-lg font-semibold text-gray-900">Cancelar Venta</h3>
+                            <p className="text-sm text-gray-500 mt-1">
+                              Esta acción no se puede deshacer. Se revertirá el stock y los movimientos financieros.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <label htmlFor="cancel-reason" className="block text-sm font-medium text-gray-700 mb-2">
+                            Razón de la cancelación *
+                          </label>
+                          <textarea
+                            id="cancel-reason"
+                            rows={3}
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            placeholder="Ingrese la razón por la cual se cancela esta venta..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setShowCancelConfirm(false)
+                            setCancelReason("")
+                          }}
+                          disabled={cancelLoading}
+                          className="flex-1 py-3 text-sm font-medium rounded-lg"
+                        >
+                          Cancelar
+                        </Button>
+                        <Button
+                          onClick={handleCancelSale}
+                          loading={cancelLoading}
+                          disabled={!cancelReason.trim()}
+                          className="flex-1 py-3 text-sm font-medium bg-red-600 hover:bg-red-700 rounded-lg"
+                        >
+                          {cancelLoading ? "Cancelando..." : "Confirmar Cancelación"}
+                        </Button>
+                      </div>
+                    </Dialog.Panel>
+                  </Transition.Child>
+                </div>
+              </div>
+            </Dialog>
+          </Transition>
+        </Dialog>
+      </Transition>
+
+      <Transition appear show={showPrintModal} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setShowPrintModal(false)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4 text-center">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+                  <div className="p-6">
+                    <div className="flex items-center mb-4">
+                      <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                        <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                    <div className="text-center mb-6">
+                      <PrinterIcon className="mx-auto h-16 w-16 text-blue-500 mb-3" />
+                      <h4 className="text-lg font-medium text-gray-900 mb-2">
+                        Imprimir Ticket
+                      </h4>
+                      <p className="text-sm text-gray-600">
+                        ¿Desea imprimir el ticket de esta venta?
+                      </p>
+                    </div>
+
+                    {/* Información de la venta */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Total:</span>
+                          <span className="font-semibold text-gray-900">
+                            {formatCurrency(sale?.total || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Cliente:</span>
+                          <span className="text-gray-900">
+                            {sale?.customer_name || 'Consumidor Final'}
+                          </span>
+                        </div>
+                        {ticketConfig?.copies_count > 1 && (
+                          <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                            <span className="text-gray-600">Copias:</span>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => setPrintCopies(Math.max(1, printCopies - 1))}
+                                className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100"
+                              >
+                                -
+                              </button>
+                              <span className="font-semibold text-gray-900 w-8 text-center">
+                                {printCopies}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setPrintCopies(Math.min(5, printCopies + 1))}
+                                className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Botones de acción */}
+                    <div className="space-y-3">
+                      <button
+                        onClick={handlePrintTicket}
+                        disabled={printing}
+                        className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2.5 rounded-lg flex items-center justify-center font-medium transition-colors"
+                      >
+                        {printing ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Imprimiendo...
+                          </>
+                        ) : (
+                          <>
+                            <PrinterIcon className="h-5 w-5 mr-2" />
+                            Imprimir Ticket
+                          </>
+                        )}
+                      </button>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={handlePreviewTicket}
+                          type="button"
+                          className="py-2 px-3 text-sm bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg transition-colors"
+                        >
+                          Vista Previa
+                        </button>
+                        <button
+                          onClick={handleDownloadTicket}
+                          type="button"
+                          className="py-2 px-3 text-sm bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-lg transition-colors"
+                        >
+                          Descargar
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => setShowPrintModal(false)}
+                        type="button"
+                        className="w-full py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
+    </>
   )
 }
 

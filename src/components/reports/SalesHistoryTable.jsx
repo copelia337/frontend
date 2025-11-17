@@ -14,6 +14,7 @@ import {
   ArrowPathIcon,
   ScaleIcon,
   CubeIcon,
+  PrinterIcon,
 } from "@heroicons/react/24/outline"
 import LoadingSpinner from "../common/LoadingSpinner"
 import SaleDetailModal from "./SaleDetailModal"
@@ -228,6 +229,12 @@ const SalesHistoryTable = () => {
     setShowDetailModal(true)
   }
 
+  const handlePrintSale = (saleId) => {
+    // Abrir el modal de detalles pero con el modal de impresión listo
+    setSelectedSaleId(saleId)
+    setShowDetailModal(true)
+  }
+
   const handleCloseModal = () => {
     setShowDetailModal(false)
     setSelectedSaleId(null)
@@ -345,7 +352,7 @@ const SalesHistoryTable = () => {
                 <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                   Cajero
                 </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                   Acciones
                 </th>
               </tr>
@@ -416,13 +423,22 @@ const SalesHistoryTable = () => {
                       </div>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <button
-                        onClick={() => handleViewSale(sale.id)}
-                        className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
-                        title="Ver detalles"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handlePrintSale(sale.id)}
+                          className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
+                          title="Imprimir ticket"
+                        >
+                          <PrinterIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleViewSale(sale.id)}
+                          className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                          title="Ver detalles"
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
