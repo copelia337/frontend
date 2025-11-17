@@ -46,17 +46,6 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
   })
 
   const [errors, setErrors] = useState({})
-  // Se eliminaron las variables de estado relacionadas con el control de secciones
-  // const [activeSection, setActiveSection] = useState("basic")
-  // const [completedSections, setCompletedSections] = useState(new Set())
-
-  // Secciones del formulario (ya no se usan activamente para el flujo, pero se mantienen por si acaso)
-  const sections = [
-    { id: "basic", name: "Básico", icon: TagIcon },
-    { id: "pricing", name: "Precios", icon: CurrencyDollarIcon },
-    { id: "inventory", name: "Inventario", icon: CubeIcon },
-    { id: "media", name: "Imagen", icon: PhotoIcon },
-  ]
 
   // Cargar categorías al montar
   useEffect(() => {
@@ -96,8 +85,6 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
         unit_type: product.unit_type || "unidades",
         active: product.active !== undefined ? product.active : true,
       })
-      // Para edición, marcar todas las secciones como completadas (ya no aplica)
-      // setCompletedSections(new Set(["basic", "pricing", "inventory", "media"]))
     } else {
       // Reset form for new product
       setFormData({
@@ -113,10 +100,8 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
         unit_type: "unidades",
         active: true,
       })
-      // setCompletedSections(new Set()) // Ya no aplica
     }
     setErrors({})
-    // setActiveSection("basic") // Ya no aplica
   }, [product, isOpen])
 
   const handleChange = (e) => {
@@ -242,12 +227,6 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
     return Object.keys(newErrors).length === 0
   }
 
-  // Se eliminaron las funciones de navegación de secciones
-  // const validateSection = (sectionId) => { ... }
-  // const handleContinue = () => { ... }
-  // const handleBack = () => { ... }
-  // const handleSectionClick = (sectionId) => { ... }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
 
@@ -264,7 +243,7 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
         cost: formData.cost ? Number.parseFloat(formData.cost) : 0,
         min_stock: formData.min_stock ? Number.parseFloat(formData.min_stock) : 10,
         category_id: formData.category_id ? Number.parseInt(formData.category_id) : null,
-        barcode: formData.barcode.trim() || null, // Código de barras completamente opcional
+        barcode: formData.barcode.trim() || null,
         image: formData.image.trim() || null,
         unit_type: formData.unit_type,
         active: formData.active,
@@ -315,7 +294,6 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
       name: fieldName,
       value: formData[fieldName],
       onChange: (e) => handleNumericChange(fieldName, e.target.value),
-      // Ajuste de padding y border-radius para consistencia con el nuevo diseño
       className: `block w-full px-4 py-2.5 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
         errors[fieldName] ? "border-red-300 bg-red-50" : "border-gray-300 hover:border-gray-400 bg-white"
       }`,
@@ -341,9 +319,6 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
   }
 
   const selectedCategory = categories.find((cat) => cat.id === Number.parseInt(formData.category_id))
-  // Se eliminaron variables de estado relacionadas con secciones
-  // const currentSectionIndex = sections.findIndex((s) => s.id === activeSection)
-  // const isLastSection = currentSectionIndex === sections.length - 1
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -371,7 +346,8 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all flex flex-col max-h-[95vh]"> {/* Mantener max-h para el contenedor principal */}
+              <Dialog.Panel className="w-full max-w-7xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all flex flex-col max-h-[95vh]">
+                {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-blue-700">
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0">
@@ -401,12 +377,12 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
                   </button>
                 </div>
 
-                {/* Contenido Principal con scroll independiente y altura fija */}
-                <div className="flex-1 overflow-hidden"> {/* Asegura que el contenido principal toma el espacio restante */}
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full"> {/* El grid original se mantiene para la estructura general */}
+                {/* Contenido Principal */}
+                <div className="flex-1 overflow-hidden">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
 
-                    {/* Sidebar derecho con vista previa (oculto en pantallas pequeñas, visible en lg+) */}
-                    <div className="lg:col-span-1 hidden lg:block border-r border-gray-100 bg-gray-50 p-6 overflow-y-auto"> {/* Oculto en pantallas pequeñas */}
+                    {/* Sidebar derecho con vista previa */}
+                    <div className="lg:col-span-1 hidden lg:block border-r border-gray-100 bg-gray-50 p-6 overflow-y-auto">
                       <div className="sticky top-0">
                         <div className="flex items-center mb-4">
                           <TagIcon className="h-4 w-4 text-gray-600 mr-2" />
@@ -501,12 +477,11 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
                       </div>
                     </div>
 
-                    {/* Formulario principal (ocupa todo el espacio en pantallas pequeñas, y la parte de formulario en pantallas grandes) */}
-                    <div className="lg:col-span-3 flex flex-col"> {/* Ocupa el espacio restante en pantallas grandes */}
-                      <div className="flex-1 overflow-y-auto max-h-[calc(95vh-200px)] p-6 custom-scrollbar"> {/* Asegura scroll si el contenido excede altura */}
-                        <form onSubmit={handleSubmit} className="space-y-5"> {/* Aumento del espacio entre secciones del form */}
-                          {/* Fila 1: Nombre y Descripción */}
-                          <div className="space-y-4">
+                    {/* Formulario principal */}
+                    <div className="lg:col-span-3 flex flex-col">
+                      <div className="flex-1 overflow-y-auto max-h-[calc(95vh-180px)] p-6">
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
                               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Nombre del producto <span className="text-red-500">*</span>
@@ -537,20 +512,20 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
                               <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Descripción
                               </label>
-                              <textarea
+                              <input
+                                type="text"
                                 name="description"
                                 id="description"
-                                rows={2}
                                 value={formData.description}
                                 onChange={handleChange}
-                                className="block w-full px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all resize-none bg-white"
+                                className="block w-full px-4 py-2.5 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:border-gray-400 transition-all bg-white"
                                 placeholder="Descripción breve (opcional)"
                               />
                             </div>
                           </div>
 
                           {/* Fila 2: Categoría y Código de Barras */}
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
                               <label htmlFor="category_id" className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Categoría
@@ -591,7 +566,7 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
                           </div>
 
                           {/* Fila 3: Precios */}
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                             <div>
                               <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1.5">
                                 Precio de Venta <span className="text-red-500">*</span>
@@ -651,7 +626,7 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
                           </div>
 
                           {/* Fila 4: Inventario */}
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
                               <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1.5">
                                 {product ? "Stock Actual" : "Stock Inicial"} <span className="text-red-500">*</span>
@@ -690,7 +665,7 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Unidad de Medida <span className="text-red-500">*</span>
                             </label>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                               <label
                                 className={`relative cursor-pointer rounded-lg border-2 p-3 transition-all ${
                                   formData.unit_type === "unidades"
@@ -795,7 +770,7 @@ const ProductForm = ({ isOpen, product, onClose, onSave }) => {
                   </div>
                 </div>
 
-
+                {/* Footer con botones */}
                 <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
                   <Button
                     type="button"
