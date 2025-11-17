@@ -11,7 +11,7 @@ class EscposFrontendService {
    */
   async generateEscposCommands(saleId, businessConfig, ticketConfig) {
     try {
-      const response = await api.post('/ticket/print-escpos', {
+      const response = await api.post('/config/print-escpos', {
         saleId,
         businessConfig,
         ticketConfig
