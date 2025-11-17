@@ -5,10 +5,13 @@ import { Outlet } from "react-router-dom"
 import Sidebar from "./Sidebar"
 import Header from "./Header"
 import { useAuth } from "@/contexts/AuthContext"
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
 
 const Layout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user } = useAuth()
+  
+  useKeyboardShortcuts()
 
   return (
     <div className="min-h-screen bg-neutral-50">
