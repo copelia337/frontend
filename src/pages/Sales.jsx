@@ -76,6 +76,10 @@ const Sales = () => {
     cartUpdateCallbackRef.current = callback
   }, [])
 
+  const handleScanDetected = useCallback(() => {
+    console.log("[v0] Escaneo detectado - Modal de cantidad abrirá automáticamente")
+  }, [])
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -123,6 +127,7 @@ const Sales = () => {
               onSearchChange={handleSearchChange} 
               searchTerm={searchTerm}
               onProductAdded={handleProductAdded}
+              onScanDetected={handleScanDetected}
             />
           </div>
 

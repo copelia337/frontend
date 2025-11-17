@@ -6,11 +6,12 @@ import { useSalesStore } from "../../stores/salesStore"
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts"
 import { MagnifyingGlassIcon, QrCodeIcon } from "@heroicons/react/24/outline"
 
-const ProductSearch = forwardRef(({ onSearchChange, searchTerm, onProductAdded }, ref) => {
+const ProductSearch = forwardRef(({ onSearchChange, searchTerm, onProductAdded, onScanDetected }, ref) => {
   const [isSearchingBarcode, setIsSearchingBarcode] = useState(false)
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm)
   const inputRef = useRef(null)
   const debounceTimerRef = useRef(null)
+  const onScanDetectedRef = useRef(onScanDetected)
 
   const { getProductByBarcode } = useProductStore()
   const { setSelectedProduct, setShowQuantityModal } = useSalesStore()
@@ -52,6 +53,10 @@ const ProductSearch = forwardRef(({ onSearchChange, searchTerm, onProductAdded }
     }
   }, [onSearchChange, onProductAdded])
 
+  useEffect(() => {
+    onScanDetectedRef.current = onScanDetected
+  }, [onScanDetected])
+
   const handleBarcodeSearch = () => {
     if (isSearchingBarcode) {
       if (localSearchTerm.trim()) {
@@ -59,6 +64,9 @@ const ProductSearch = forwardRef(({ onSearchChange, searchTerm, onProductAdded }
         if (product && product.active && product.stock > 0) {
           setSelectedProduct(product)
           setShowQuantityModal(true)
+          if (onScanDetectedRef.current) {
+            onScanDetectedRef.current()
+          }
           setLocalSearchTerm("")
           onSearchChange("")
           setIsSearchingBarcode(false)
