@@ -5,6 +5,7 @@ import { useProductStore } from "../../stores/productStore"
 import { useCategoryStore } from "../../stores/categoryStore"
 import { useSalesStore } from "../../stores/salesStore"
 import { formatCurrency, formatStock } from "../../lib/formatters"
+import Button from "../common/Button"
 import {
   MagnifyingGlassIcon,
   ChevronUpIcon,
@@ -18,7 +19,7 @@ const ProductList = ({ searchTerm }) => {
   const [sortDirection, setSortDirection] = useState("desc")
   const [displayProducts, setDisplayProducts] = useState([])
 
-  const { topSellingProducts, fetchTopSellingProducts, searchProductsForSales, loading } = useProductStore()
+  const { topSellingProducts, fetchTopSellingProducts, searchResults, searchPagination, searchProductsForSales, loadMoreSearchResults, loading } = useProductStore()
   const { categories } = useCategoryStore()
   const { setSelectedProduct, setShowQuantityModal, cart } = useSalesStore()
 
@@ -48,9 +49,9 @@ const ProductList = ({ searchTerm }) => {
     const handleSearch = async () => {
       try {
         if (isMounted) {
-          const results = await searchProductsForSales(searchTerm)
-          if (isMounted) {
-            setDisplayProducts(results.filter((product) => product.active))
+          // Solo buscar si hay 2 o más caracteres
+          if (searchTerm && searchTerm.trim().length >= 2) {
+            await searchProductsForSales(searchTerm, 1, false)
           }
         }
       } catch (error) {
@@ -144,20 +145,56 @@ const ProductList = ({ searchTerm }) => {
     </th>
   )
 
+  useEffect(() => {
+    let isMounted = true
+
+    const handleSearch = async () => {
+      if (isMounted) {
+        // Solo buscar si hay 2 o más caracteres
+        if (searchTerm && searchTerm.trim().length >= 2) {
+          await searchProductsForSales(searchTerm, 1, false)
+        }
+      }
+    }
+
+    handleSearch()
+
+    return () => {
+      isMounted = false
+    }
+  }, [searchTerm, searchProductsForSales])
+
+  const displayProducts = useMemo(() => {
+    return searchResults.filter((product) => product.active)
+  }, [searchResults])
+
+  const handleLoadMore = async () => {
+    await loadMoreSearchResults()
+  }
+
   return (
     <div className="space-y-4">
-      {/* Indicador de búsqueda activa */}
-      {searchTerm && searchTerm.trim() && (
+      {searchTerm && searchTerm.trim().length >= 2 && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <MagnifyingGlassIcon className="h-5 w-5 text-blue-500 mr-2" />
               <span className="text-sm text-blue-700">
-                Buscando: "<strong>{searchTerm}</strong>" - {filteredProducts.length} resultado(s)
-                {loading && <span className="ml-2 text-blue-500">Buscando...</span>}
+                Buscando: "<strong>{searchTerm}</strong>" - {searchPagination.total} resultado(s) total(es),
+                mostrando {displayProducts.length}
+                {loading && <span className="ml-2 text-blue-500 animate-pulse">Buscando...</span>}
               </span>
             </div>
           </div>
+        </div>
+      )}
+
+      {(!searchTerm || searchTerm.trim().length < 2) && (
+        <div className="text-center py-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-dashed border-blue-200">
+          <MagnifyingGlassIcon className="h-20 w-20 text-blue-300 mx-auto mb-4" />
+          <p className="text-gray-600 text-xl font-medium mb-2">Comienza a buscar productos</p>
+          <p className="text-gray-500">Escribe al menos 2 caracteres para ver los resultados</p>
+          <p className="text-sm text-gray-400 mt-2">💡 También puedes usar el escáner de código de barras</p>
         </div>
       )}
 
@@ -300,50 +337,51 @@ const ProductList = ({ searchTerm }) => {
         </div>
       </div>
 
-      {/* Mensaje cuando no hay productos */}
-      {filteredProducts.length === 0 && !loading && (
-        <div className="text-center py-16">
-          {searchTerm && searchTerm.trim() ? (
-            <div>
-              <MagnifyingGlassIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-xl mb-2">No se encontraron productos</p>
-              <p className="text-gray-400">
-                No hay productos que coincidan con "<strong>{searchTerm}</strong>"
-              </p>
-            </div>
-          ) : (
-            <div>
-              <p className="text-gray-500 text-xl mb-2">No hay productos más vendidos disponibles</p>
-              <p className="text-gray-400">No hay productos más vendidos en el sistema</p>
-            </div>
-          )}
+      {searchPagination.hasMore && (
+        <div className="flex justify-center py-6">
+          <Button
+            onClick={handleLoadMore}
+            disabled={loading}
+            variant="outline"
+            className="px-6 py-3 text-base font-medium shadow-sm hover:shadow-md transition-all"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mr-2"></div>
+                Cargando más productos...
+              </>
+            ) : (
+              <>
+                Mostrar más productos ({searchPagination.total - displayProducts.length} restantes)
+              </>
+            )}
+          </Button>
         </div>
       )}
 
-      {/* Indicador de carga */}
-      {loading && (
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-2 text-gray-500">Buscando productos...</p>
+      {/* Mensaje cuando no hay productos */}
+      {displayProducts.length === 0 && !loading && searchTerm.trim().length >= 2 && (
+        <div className="text-center py-16">
+          <MagnifyingGlassIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500 text-xl mb-2">No se encontraron productos</p>
+          <p className="text-gray-400">
+            No hay productos que coincidan con "<strong>{searchTerm}</strong>"
+          </p>
+        </div>
+      )}
+
+      {/* Indicador de carga inicial */}
+      {loading && displayProducts.length === 0 && (
+        <div className="text-center py-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-500 text-lg">Buscando productos...</p>
         </div>
       )}
 
       {/* Resumen */}
-      {filteredProducts.length > 0 && (
+      {displayProducts.length > 0 && (
         <div className="text-sm text-gray-500 text-center py-4 border-t border-gray-100">
-          {searchTerm && searchTerm.trim() ? (
-            <>
-              Mostrando {filteredProducts.length} productos para "{searchTerm}"
-            </>
-          ) : (
-            <>mostrando {filteredProducts.length} productos más vendidos</>
-          )}
-          {sortField && (
-            <span className="ml-2">
-              - Ordenado por {sortField === "total_sold" ? "más vendidos" : sortField} (
-              {sortDirection === "asc" ? "ascendente" : "descendente"})
-            </span>
-          )}
+          Mostrando {displayProducts.length} de {searchPagination.total} productos para "{searchTerm}"
         </div>
       )}
     </div>

@@ -1,24 +1,30 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { useProductStore } from "../../stores/productStore"
 import { useSalesStore } from "../../stores/salesStore"
 import { MagnifyingGlassIcon, QrCodeIcon } from "@heroicons/react/24/outline"
 
 const ProductSearch = ({ onSearchChange, searchTerm }) => {
   const [isSearchingBarcode, setIsSearchingBarcode] = useState(false)
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm)
   const inputRef = useRef(null)
+  const debounceTimerRef = useRef(null)
 
   const { getProductByBarcode } = useProductStore()
   const { addToCart } = useSalesStore()
 
+  useEffect(() => {
+    setLocalSearchTerm(searchTerm)
+  }, [searchTerm])
+
   const handleBarcodeSearch = () => {
     if (isSearchingBarcode) {
-      // Si ya está en modo código de barras, buscar el producto
-      if (searchTerm.trim()) {
-        const product = getProductByBarcode(searchTerm.trim())
+      if (localSearchTerm.trim()) {
+        const product = getProductByBarcode(localSearchTerm.trim())
         if (product && product.active && product.stock > 0) {
           addToCart(product, 1)
+          setLocalSearchTerm("")
           onSearchChange("")
           setIsSearchingBarcode(false)
           inputRef.current?.focus()
@@ -27,8 +33,8 @@ const ProductSearch = ({ onSearchChange, searchTerm }) => {
         }
       }
     } else {
-      // Activar modo código de barras
       setIsSearchingBarcode(true)
+      setLocalSearchTerm("")
       onSearchChange("")
       inputRef.current?.focus()
     }
@@ -39,17 +45,45 @@ const ProductSearch = ({ onSearchChange, searchTerm }) => {
       handleBarcodeSearch()
     } else if (e.key === "Escape") {
       setIsSearchingBarcode(false)
+      setLocalSearchTerm("")
       onSearchChange("")
     }
   }
 
-  const handleInputChange = (e) => {
-    const value = e.target.value
-    onSearchChange(value)
-  }
+  const handleInputChange = useCallback(
+    (e) => {
+      const value = e.target.value
+      setLocalSearchTerm(value)
+
+      // Limpiar timer anterior
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+
+      // Solo aplicar debounce si hay 2 o más caracteres
+      if (value.trim().length >= 2) {
+        debounceTimerRef.current = setTimeout(() => {
+          onSearchChange(value)
+        }, 300) // 300ms de debounce para búsqueda fluida
+      } else {
+        // Si hay menos de 2 caracteres, limpiar resultados inmediatamente
+        onSearchChange("")
+      }
+    },
+    [onSearchChange],
+  )
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
 
   const cancelBarcodeMode = () => {
     setIsSearchingBarcode(false)
+    setLocalSearchTerm("")
     onSearchChange("")
     inputRef.current?.focus()
   }
@@ -57,7 +91,6 @@ const ProductSearch = ({ onSearchChange, searchTerm }) => {
   return (
     <div className="relative">
       <div className="flex gap-2">
-        {/* Campo de búsqueda */}
         <div className="flex-1 relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
@@ -68,9 +101,9 @@ const ProductSearch = ({ onSearchChange, searchTerm }) => {
             placeholder={
               isSearchingBarcode
                 ? "Escanea o ingresa el código de barras..."
-                : "Buscar productos por nombre o descripción..."
+                : "Buscar productos (mínimo 2 caracteres)..." // Indicar mínimo de caracteres
             }
-            value={searchTerm}
+            value={localSearchTerm}
             onChange={handleInputChange}
             onKeyDown={handleKeyPress}
             className={`block w-full pl-10 pr-3 py-2 border rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 ${
@@ -90,7 +123,6 @@ const ProductSearch = ({ onSearchChange, searchTerm }) => {
           )}
         </div>
 
-        {/* Botón de código de barras */}
         <button
           onClick={handleBarcodeSearch}
           className={`px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors ${
@@ -104,10 +136,15 @@ const ProductSearch = ({ onSearchChange, searchTerm }) => {
         </button>
       </div>
 
-      {/* Indicador de modo código de barras */}
       {isSearchingBarcode && (
         <div className="mt-2 text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded">
           📱 Modo código de barras activo - Presiona Enter o el botón para buscar
+        </div>
+      )}
+
+      {!isSearchingBarcode && localSearchTerm.trim().length > 0 && localSearchTerm.trim().length < 2 && (
+        <div className="mt-2 text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded">
+          ✍️ Escribe al menos 2 caracteres para buscar productos
         </div>
       )}
     </div>

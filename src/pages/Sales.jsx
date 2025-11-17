@@ -11,7 +11,7 @@ import ProductList from "../components/sales/ProductList"
 import Cart from "../components/sales/Cart"
 import PaymentModal from "../components/sales/PaymentModal"
 import QuantityModal from "../components/sales/QuantityModal"
-import { Squares2X2Icon, ListBulletIcon, ArrowPathIcon } from "@heroicons/react/24/outline"
+import { Squares2X2Icon, ListBulletIcon } from "@heroicons/react/24/outline"
 
 const Sales = () => {
   const [viewMode, setViewMode] = useState("list")
@@ -39,9 +39,7 @@ const Sales = () => {
         const promises = []
 
         // Solo cargar productos si no hay datos
-        if (topSellingProducts.length === 0) {
-          promises.push(fetchTopSellingProducts(10))
-        }
+        // promises.push(fetchTopSellingProducts(10))
 
         // Cargar categorías
         promises.push(fetchCategories({ active: "true" }))
@@ -71,53 +69,36 @@ const Sales = () => {
     setSearchTerm(term)
   }
 
-  const handleRefreshTopProducts = async () => {
-    try {
-      await fetchTopSellingProducts(10, true)
-    } catch (error) {
-      console.error("Error refreshing top products:", error)
-    }
-  }
+  // Eliminar handleRefreshTopProducts, ya no se cargan productos al inicio
 
   return (
     <div className="space-y-6">
-      {/* Header ACTUALIZADO con botón de refresh */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Punto de Venta</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Gestiona tus ventas con los {topSellingProducts.length} productos más vendidos
-          </p>
+          <p className="mt-1 text-sm text-gray-500">Busca productos escribiendo al menos 2 caracteres</p>
         </div>
         <div className="flex items-center space-x-4">
-          {/* NUEVO: Botón de refresh */}
-          <button
-            onClick={handleRefreshTopProducts}
-            disabled={loading}
-            className="p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
-            title="Actualizar productos más vendidos"
-          >
-            <ArrowPathIcon className={`h-5 w-5 ${loading ? "animate-spin" : ""}`} />
-          </button>
-
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-500 mr-2">Vista:</span>
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-md transition-colors ${viewMode === "grid"
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === "grid"
                   ? "bg-primary-100 text-primary-600"
                   : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                }`}
+              }`}
               title="Vista en tarjetas"
             >
               <Squares2X2Icon className="h-5 w-5" />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-md transition-colors ${viewMode === "list"
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === "list"
                   ? "bg-primary-100 text-primary-600"
                   : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                }`}
+              }`}
               title="Vista en tabla"
             >
               <ListBulletIcon className="h-5 w-5" />
@@ -135,7 +116,7 @@ const Sales = () => {
             <ProductSearch onSearchChange={handleSearchChange} searchTerm={searchTerm} />
           </div>
 
-          {/* Grid/Lista de productos OPTIMIZADA */}
+          {/* Grid/Lista de productos */}
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
             {loading && topSellingProducts.length === 0 ? (
               <div className="flex items-center justify-center py-12">
@@ -144,11 +125,7 @@ const Sales = () => {
               </div>
             ) : (
               <>
-                {viewMode === "grid" ? (
-                  <ProductGrid searchTerm={searchTerm} />
-                ) : (
-                  <ProductList searchTerm={searchTerm} />
-                )}
+                {viewMode === "grid" ? <ProductGrid searchTerm={searchTerm} /> : <ProductList searchTerm={searchTerm} />}
               </>
             )}
           </div>
