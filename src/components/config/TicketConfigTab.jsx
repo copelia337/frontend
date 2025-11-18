@@ -2,8 +2,9 @@ import { useState, useEffect } from "react"
 import { useConfigStore } from "@/stores/configStore"
 import { useToast } from "@/contexts/ToastContext"
 import Button from "@/components/common/Button"
-import LoadingButton from "@/components/common/LoandingButton"
+import LoadingButton from "@/components/common/LoadingButton"
 import PrinterTestModal from "./PrinterTestModal"
+import PrinterConfigModal from "./PrinterConfigModal" // Import new PrinterConfigModal component
 import { ReceiptPercentIcon, PrinterIcon } from "@heroicons/react/24/outline"
 
 const TicketConfigTab = () => {
@@ -12,6 +13,7 @@ const TicketConfigTab = () => {
   const [formData, setFormData] = useState(ticketConfig)
   const [showPrinterModal, setShowPrinterModal] = useState(false)
   const [selectedPrinter, setSelectedPrinter] = useState(null)
+  const [showPrinterConfigModal, setShowPrinterConfigModal] = useState(false) // Added new state for PrinterConfigModal
 
   useEffect(() => {
     fetchTicketConfig()
@@ -134,7 +136,7 @@ const TicketConfigTab = () => {
 
                 <Button
                   type="button"
-                  onClick={() => setShowPrinterModal(true)}
+                  onClick={() => setShowPrinterConfigModal(true)} // Updated to open new modal
                   className="w-full"
                 >
                   <PrinterIcon className="h-4 w-4 mr-2" />
@@ -505,6 +507,15 @@ const TicketConfigTab = () => {
         onClose={() => setShowPrinterModal(false)}
         onPrinterSelected={handlePrinterSelected}
       />
+
+      {/* Added PrinterConfigModal component */}
+      {showPrinterConfigModal && (
+        <PrinterConfigModal
+          isOpen={showPrinterConfigModal}
+          onClose={() => setShowPrinterConfigModal(false)}
+          onPrinterSelected={handlePrinterSelected}
+        />
+      )}
     </div>
   )
 }

@@ -78,16 +78,14 @@ const SaleDetailModal = ({ isOpen, onClose, saleId, onSaleUpdated }) => {
 
     setPrinting(true)
     try {
-      console.log('[v0] Iniciando impresión ESC/POS desde reportes...', { saleId: sale.id, printCopies })
+      console.log('[v0] Iniciando impresión desde reportes...', { saleId: sale.id, printCopies })
 
       for (let i = 0; i < printCopies; i++) {
         console.log('[v0] Imprimiendo copia', i + 1, 'de', printCopies)
         
         const api = (await import('@/config/api')).default
         const response = await api.post('/ticket/print-escpos', {
-          saleId: sale.id,
-          businessConfig,
-          ticketConfig
+          saleId: sale.id
         })
 
         console.log('[v0] Respuesta del backend:', response.data)
@@ -96,66 +94,64 @@ const SaleDetailModal = ({ isOpen, onClose, saleId, onSaleUpdated }) => {
           throw new Error(response.data.message || 'Error al imprimir')
         }
 
-        if (response.data.data?.commands) {
-          
-          // Determine print method based on configuration
-          let printResult = null
-          const printMethod = ticketConfig?.print_method || 'preview' // Fallback to preview
-          
-          console.log('[v0] Usando método de impresión:', printMethod)
-          
-          switch(printMethod) {
-            case 'serial':
-              try {
-                printResult = await escposService.printViaSerialPort(response.data.data.commands)
-              } catch (serialError) {
-                console.warn('[v0] Error Serial USB, intentando fallback...')
-                printResult = await escposService.printViaPreview(response.data.data.commands)
-              }
-              break
-              
-            case 'bluetooth':
-              try {
-                printResult = await escposService.printViaBluetooth(response.data.data.commands)
-              } catch (bluetoothError) {
-                console.warn('[v0] Error Bluetooth, intentando fallback...')
-                printResult = await escposService.printViaPreview(response.data.data.commands)
-              }
-              break
-              
-            case 'localserver':
-              try {
-                const localServerUrl = ticketConfig?.local_printer_url || 'http://localhost:9100'
-                printResult = await escposService.printViaLocalServer(response.data.data.commands, localServerUrl)
-              } catch (serverError) {
-                console.warn('[v0] Error Local Server, intentando fallback...')
-                printResult = await escposService.printViaPreview(response.data.data.commands)
-              }
-              break
-              
-            case 'preview':
-            default:
-              printResult = await escposService.printViaPreview(response.data.data.commands)
-              break
+        const method = response.data.data?.method
+        
+        if (method === 'printer') {
+          // Backend ya envió a la impresora
+          showToast('Ticket impreso correctamente en la impresora térmica', 'success')
+        } else if (method === 'preview') {
+          // No hay impresora conectada, mostrar preview
+          if (response.data.data?.commands) {
+            const previewWindow = window.open('about:blank', 'TicketPreview')
+            const htmlContent = `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <title>Vista Previa - Ticket #${sale.id}</title>
+                <style>
+                  body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+                  .ticket { 
+                    background: white; 
+                    padding: 20px; 
+                    max-width: 400px; 
+                    margin: 0 auto;
+                    white-space: pre-wrap;
+                    border: 1px solid #ccc;
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="ticket" id="ticket"></div>
+                <script>
+                  const base64 = '${response.data.data.commands}';
+                  const binaryString = atob(base64);
+                  let text = '';
+                  for (let i = 0; i < binaryString.length; i++) {
+                    const code = binaryString.charCodeAt(i);
+                    if (code >= 32 && code <= 126) text += String.fromCharCode(code);
+                    else if (code === 10) text += '\\n';
+                    else if (code === 27) text += '[ESC]';
+                  }
+                  document.getElementById('ticket').textContent = text;
+                </script>
+              </body>
+              </html>
+            `
+            previewWindow.document.write(htmlContent)
+            showToast('Mostrando preview (impresora no conectada)', 'info')
           }
-          
-          console.log('[v0] Resultado de impresión:', printResult)
         }
 
+        // Esperar un poco entre copias
         if (i < printCopies - 1) {
           await new Promise(resolve => setTimeout(resolve, 500))
         }
       }
 
-      showToast(
-        printCopies > 1 ? `Se imprimieron ${printCopies} copias correctamente` : "El ticket se imprimió correctamente",
-        "success"
-      )
-
-      setShowPrintModal(false)
+      showToast(`${printCopies} ticket(s) procesado(s) correctamente`, 'success')
     } catch (error) {
-      console.error("[v0] Error al imprimir:", error)
-      showToast(error.response?.data?.message || error.message || "No se pudo imprimir el ticket", "error")
+      console.error('[v0] Error al imprimir:', error)
+      showToast(error.message || 'Error al imprimir el ticket', 'error')
     } finally {
       setPrinting(false)
     }
@@ -174,25 +170,42 @@ const SaleDetailModal = ({ isOpen, onClose, saleId, onSaleUpdated }) => {
       })
 
       if (response.data.success) {
-        const previewWindow = window.open('', 'THERMAL_PREVIEW', 'width=400,height=600')
-        previewWindow.document.write(`
+        const previewWindow = window.open('about:blank', 'TicketPreview')
+        const htmlContent = `
+          <!DOCTYPE html>
           <html>
           <head>
-            <title>Vista Previa Ticket</title>
+            <title>Vista Previa - Ticket #${sale.id}</title>
             <style>
-              body { font-family: 'Courier New', monospace; margin: 20px; background: #f5f5f5; }
-              .ticket { width: 280px; border: 1px solid #ccc; padding: 10px; background: white; margin: auto; }
-              pre { font-size: 11px; white-space: pre-wrap; margin: 0; line-height: 1.4; }
+              body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+              .ticket { 
+                background: white; 
+                padding: 20px; 
+                max-width: 400px; 
+                margin: 0 auto;
+                white-space: pre-wrap;
+                border: 1px solid #ccc;
+              }
             </style>
           </head>
           <body>
-            <div class="ticket">
-              <pre>${response.data.data.previewText || 'No disponible'}</pre>
-            </div>
+            <div class="ticket" id="ticket"></div>
+            <script>
+              const base64 = '${response.data.data.commands}';
+              const binaryString = atob(base64);
+              let text = '';
+              for (let i = 0; i < binaryString.length; i++) {
+                const code = binaryString.charCodeAt(i);
+                if (code >= 32 && code <= 126) text += String.fromCharCode(code);
+                else if (code === 10) text += '\\n';
+                else if (code === 27) text += '[ESC]';
+              }
+              document.getElementById('ticket').textContent = text;
+            </script>
           </body>
           </html>
-        `)
-        previewWindow.document.close()
+        `
+        previewWindow.document.write(htmlContent)
       }
     } catch (error) {
       console.error('Error en vista previa:', error)
@@ -497,16 +510,6 @@ const SaleDetailModal = ({ isOpen, onClose, saleId, onSaleUpdated }) => {
                               </div>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-6 border border-orange-100">
-                          <div className="flex items-center mb-4">
-                            <CreditCardIcon className="h-6 w-6 text-orange-600 mr-3" />
-                            <h4 className="text-lg font-semibold text-orange-900">
-                              {sale.payment_method === "multiple" ? "Métodos de Pago" : "Método de Pago"}
-                            </h4>
-                          </div>
-                          {renderPaymentMethodsDetail(sale)}
                         </div>
 
                         <div className="bg-white rounded-xl border border-gray-200">
