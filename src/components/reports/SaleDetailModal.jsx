@@ -181,7 +181,6 @@ const SaleDetailModal = ({ isOpen, onClose, saleId, onSaleUpdated }) => {
       await cancelSale(saleId, cancelReason.trim())
       showToast("Venta cancelada correctamente", "success")
 
-      // Recargar los detalles de la venta para obtener la información de cancelación actualizada
       await loadSaleDetail()
       setShowCancelConfirm(false)
       setCancelReason("")
@@ -191,6 +190,9 @@ const SaleDetailModal = ({ isOpen, onClose, saleId, onSaleUpdated }) => {
       }
     } catch (error) {
       showToast(error.message || "Error al cancelar la venta", "error")
+      // Cerrar el modal de confirmación pero NO recargar los datos
+      setShowCancelConfirm(false)
+      setCancelReason("")
     } finally {
       setCancelLoading(false)
     }
