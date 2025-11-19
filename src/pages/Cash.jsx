@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useCashStore } from "@/stores/cashStore"
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts"
+import { useAuth } from "@/contexts/AuthContext"
 import Button from "@/components/common/Button"
 import CashSummary from "@/components/cash/CashSummary"
 import CashMovementsList from "@/components/cash/CashMovementsList"
@@ -23,6 +24,7 @@ import {
 const Cash = () => {
   const { currentCash, fetchCurrentStatus, loading, error } = useCashStore()
   const { registerOpenCloseForm } = useKeyboardShortcuts()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState("summary")
   const [showOpeningForm, setShowOpeningForm] = useState(false)
   const [showCloseForm, setShowCloseForm] = useState(false)
@@ -147,29 +149,31 @@ const Cash = () => {
         <nav className="-mb-px flex space-x-8">
           {[
             { id: "summary", name: "Resumen", icon: BanknotesIcon },
-            { id: "movements", name: "Movimientos", icon: ListBulletIcon },
-            { id: "history", name: "Historial", icon: ArchiveBoxIcon },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === tab.id
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <tab.icon className="h-5 w-5 mr-2" />
-              {tab.name}
-            </button>
-          ))}
+            { id: "movements", name: "Movimientos", icon: ListBulletIcon, adminOnly: true },
+            { id: "history", name: "Historial", icon: ArchiveBoxIcon, adminOnly: true },
+          ]
+            .filter((tab) => !tab.adminOnly || user?.role === "admin")
+            .map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <tab.icon className="h-5 w-5 mr-2" />
+                {tab.name}
+              </button>
+            ))}
         </nav>
       </div>
 
       {/* Contenido de tabs */}
       {activeTab === "summary" && <CashSummary />}
-      {activeTab === "movements" && <CashMovementsList />}
-      {activeTab === "history" && <CashHistory />}
+      {activeTab === "movements" && user?.role === "admin" && <CashMovementsList />}
+      {activeTab === "history" && user?.role === "admin" && <CashHistory />}
 
       {/* Modales */}
       <CashOpeningForm isOpen={showOpeningForm} onClose={() => setShowOpeningForm(false)} />

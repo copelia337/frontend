@@ -122,16 +122,9 @@ const AppRoutes = () => {
         <Route path="caja" element={<Cash />} />
         <Route path="clientes" element={<Customers />} />
         <Route path="proveedores" element={<Suppliers />} />
-
+        <Route path="reportes" element={<Reports />} />
+        
         {/* Rutas que requieren permisos de administrador */}
-        <Route
-          path="reportes"
-          element={
-            <ProtectedRoute requiredRole="admin">
-              <Reports />
-            </ProtectedRoute>
-          }
-        />
         <Route
           path="configuracion"
           element={

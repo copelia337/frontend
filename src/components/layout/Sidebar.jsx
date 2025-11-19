@@ -27,8 +27,8 @@ const navigation = [
   { name: "Stock", href: "/stock", icon: CubeIcon },
   { name: "Clientes", href: "/clientes", icon: UsersIcon },
   { name: "Categorías", href: "/categorias", icon: TagIcon },
+  { name: "Reportes", href: "/reportes", icon: ChartBarIcon },
   // Rutas solo para admin
-  { name: "Reportes", href: "/reportes", icon: ChartBarIcon, adminOnly: true },
   { name: "Configuración", href: "/configuracion", icon: Cog6ToothIcon, adminOnly: true },
 ]
 
