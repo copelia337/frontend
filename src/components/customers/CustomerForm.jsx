@@ -7,7 +7,7 @@ import { useCustomerStore } from "../../stores/customerStore"
 import { useToast } from "../../hooks/useToast"
 import { formatCurrency } from "../../lib/formatters"
 import Button from "../common/Button"
-import NumericFormat from "react-number-format"
+import { NumericFormat } from "react-number-format"
 import {
   XMarkIcon,
   ExclamationTriangleIcon,
@@ -203,7 +203,6 @@ const CustomerForm = ({ customer, onClose, onSuccess }) => {
 
                 <div className="flex-1 overflow-hidden">
                   <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
-                    {/* Sidebar derecho con vista previa */}
                     <div className="lg:col-span-1 hidden lg:block border-r border-gray-100 bg-gray-50 p-6 overflow-y-auto">
                       <div className="sticky top-0">
                         <div className="flex items-center mb-4">
@@ -271,12 +270,10 @@ const CustomerForm = ({ customer, onClose, onSuccess }) => {
                       </div>
                     </div>
 
-                    {/* Formulario principal */}
                     <div className="lg:col-span-3 flex flex-col">
                       <div className="flex-1 overflow-y-auto max-h-[calc(95vh-180px)] p-6">
                         <form onSubmit={handleSubmit} className="space-y-6">
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Left column: Información Básica */}
                             <div>
                               <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
                                 <UserIcon className="h-4 w-4 mr-2 text-blue-600" />
@@ -329,7 +326,6 @@ const CustomerForm = ({ customer, onClose, onSuccess }) => {
                               </div>
                             </div>
 
-                            {/* Right column: Información de Contacto */}
                             <div>
                               <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
                                 <EnvelopeIcon className="h-4 w-4 mr-2 text-blue-600" />
@@ -389,10 +385,8 @@ const CustomerForm = ({ customer, onClose, onSuccess }) => {
                             </div>
                           </div>
 
-                          {/* Second row: Ubicación and Crédito y Notas */}
                           <div className="pt-4 border-t border-gray-100">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                              {/* Left column: Ubicación */}
                               <div>
                                 <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
                                   <MapPinIcon className="h-4 w-4 mr-2 text-blue-600" />
@@ -431,7 +425,6 @@ const CustomerForm = ({ customer, onClose, onSuccess }) => {
                                 </div>
                               </div>
 
-                              {/* Right column: Crédito y Notas */}
                               <div>
                                 <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
                                   <CurrencyDollarIcon className="h-4 w-4 mr-2 text-blue-600" />

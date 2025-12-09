@@ -16,7 +16,6 @@ import {
   ArrowsRightLeftIcon,
   UserIcon,
   CheckCircleIcon,
-  ArrowTrendingDownIcon,
   AdjustmentsHorizontalIcon,
   CurrencyDollarIcon,
   ReceiptPercentIcon,
@@ -57,8 +56,8 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
       description: "Transferencia bancaria",
     },
     {
-      value: "tarjeta_credito",
-      label: "Tarjeta de Crédito",
+      value: "tarjeta",
+      label: "Tarjeta",
       icon: CreditCardIcon,
       affects_cash: false,
       color: "from-purple-500 to-purple-600",
@@ -69,46 +68,27 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
   const transactionTypes = [
     {
       value: TRANSACTION_TYPES.PAGO,
-      label: TRANSACTION_TYPE_LABELS[TRANSACTION_TYPES.PAGO],
-      icon: ArrowTrendingDownIcon,
+      label: TRANSACTION_TYPE_LABELS.PAGO,
+      icon: BanknotesIcon,
       color: "from-green-500 to-green-600",
-      impact: "decrease",
-      description: "Disminuye el saldo del cliente (pago)",
+      description: "Reduce el saldo deudor",
     },
     {
-      value: TRANSACTION_TYPES.AJUSTE_DEBITO,
-      label: TRANSACTION_TYPE_LABELS[TRANSACTION_TYPES.AJUSTE_DEBITO],
+      value: TRANSACTION_TYPES.AJUSTE,
+      label: TRANSACTION_TYPE_LABELS.AJUSTE,
       icon: AdjustmentsHorizontalIcon,
       color: "from-orange-500 to-orange-600",
-      impact: "increase",
-      description: "Aumenta el saldo del cliente (ajuste)",
+      description: "Ajuste manual de saldo",
     },
   ]
 
-  const validateForm = () => {
-    const newErrors = {}
-
-    if (!formData.type) {
-      newErrors.type = "El tipo de transacción es requerido"
-    }
-
-    if (!formData.amount || Number.parseFloat(formData.amount) <= 0) {
-      newErrors.amount = "El monto debe ser mayor a 0"
-    }
-
-    if (formData.type === TRANSACTION_TYPES.PAGO && !formData.payment_method) {
-      newErrors.payment_method = "El método de pago es requerido para pagos"
-    }
-
-    if (!formData.description.trim()) {
-      newErrors.description = "La descripción es requerida"
-    } else if (formData.description.trim().length < 5) {
-      newErrors.description = "La descripción debe tener al menos 5 caracteres"
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+  const selectedPaymentMethod = paymentMethods.find((m) => m.value === formData.payment_method)
+  const newBalance = formData.amount
+    ? customer.current_balance -
+      (formData.type === TRANSACTION_TYPES.PAGO
+        ? Number.parseFloat(formData.amount)
+        : -Number.parseFloat(formData.amount))
+    : customer.current_balance
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -125,6 +105,25 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
     }
   }
 
+  const validateForm = () => {
+    const newErrors = {}
+
+    if (!formData.type.trim()) {
+      newErrors.type = "El tipo de transacción es requerido"
+    }
+
+    if (!formData.amount || Number.parseFloat(formData.amount) <= 0) {
+      newErrors.amount = "El monto debe ser mayor a 0"
+    }
+
+    if (formData.type === TRANSACTION_TYPES.PAGO && !formData.payment_method.trim()) {
+      newErrors.payment_method = "El método de pago es requerido"
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
 
@@ -134,53 +133,18 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
     }
 
     try {
-      const transactionData = {
+      await createAccountTransaction({
         ...formData,
         amount: Number.parseFloat(formData.amount),
-        description: formData.description.trim(),
-        reference: formData.reference.trim() || null,
-        payment_method: formData.type === TRANSACTION_TYPES.PAGO ? formData.payment_method : undefined,
-      }
+      })
 
-      const response = await createAccountTransaction(transactionData)
-
-      if (response.data.payment_method && response.data.cash_registration) {
-        const { affects_physical_cash, registered } = response.data.cash_registration
-        if (registered && affects_physical_cash) {
-          showToast(
-            `Pago registrado correctamente. Se agregó ${formatCurrency(formData.amount)} al efectivo físico de la caja.`,
-            "success",
-          )
-        } else if (!affects_physical_cash) {
-          showToast(
-            `Pago registrado correctamente. El pago por ${response.data.payment_method} no afecta el efectivo físico de la caja.`,
-            "info",
-          )
-        }
-      } else {
-        showToast("Transacción registrada correctamente", "success")
-      }
-
+      showToast("Transacción registrada correctamente", "success")
       onSuccess()
     } catch (error) {
-      console.error("Error creating transaction:", error)
-      showToast(error.message || "Error creando transacción", "error")
+      console.error("Error registrando transacción:", error)
+      showToast(error.message || "Error registrando transacción", "error")
     }
   }
-
-  const calculateNewBalance = () => {
-    if (!formData.amount || !formData.type) return customer.current_balance
-
-    const amount = Number.parseFloat(formData.amount)
-    if (formData.type === TRANSACTION_TYPES.AJUSTE_DEBITO) {
-      return customer.current_balance + amount
-    } else {
-      return customer.current_balance - amount
-    }
-  }
-
-  const newBalance = calculateNewBalance()
-  const selectedPaymentMethod = paymentMethods.find((method) => method.value === formData.payment_method)
 
   return (
     <Transition appear show={true} as={Fragment}>
@@ -208,7 +172,7 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-7xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all flex flex-col max-h-[95vh]">
+              <Dialog.Panel className="w-full max-w-5xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all flex flex-col max-h-[95vh]">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-blue-700">
                   <div className="flex items-center space-x-3">
                     <div className="flex-shrink-0">
@@ -238,7 +202,7 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
                       <UserIcon className="h-5 w-5 text-blue-600" />
                     </div>
                     <div className="flex-1 text-left">
-                      <h3 className="text-lg font-semibold text-gray-900 text-left">{customer.name}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">{customer.name}</h3>
                       <div className="flex items-center gap-4 text-sm mt-1">
                         <span className="text-gray-600">
                           Saldo:{" "}
@@ -259,7 +223,6 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
 
                 <div className="flex-1 overflow-hidden">
                   <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
-                    {/* Sidebar derecho con resumen */}
                     <div className="lg:col-span-1 hidden lg:block border-r border-gray-100 bg-gray-50 p-6 overflow-y-auto">
                       <div className="sticky top-0">
                         <div className="flex items-center mb-4">
@@ -338,7 +301,6 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
                       </div>
                     </div>
 
-                    {/* Formulario principal */}
                     <div className="lg:col-span-3 flex flex-col">
                       <div className="flex-1 overflow-y-auto max-h-[calc(95vh-220px)] p-6">
                         <form onSubmit={handleSubmit} className="space-y-6">
@@ -387,7 +349,6 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
 
                           <div className="pt-4 border-t border-gray-100">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                              {/* Amount field */}
                               <div>
                                 <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
                                   <CurrencyDollarIcon className="h-4 w-4 mr-2 text-blue-600" />
@@ -429,7 +390,6 @@ const AccountTransactionForm = ({ customer, onClose, onSuccess }) => {
                                 </div>
                               </div>
 
-                              {/* Payment method field - only visible for PAGO transactions */}
                               {formData.type === TRANSACTION_TYPES.PAGO && (
                                 <div>
                                   <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
