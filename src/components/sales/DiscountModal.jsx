@@ -1,264 +1,289 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { Fragment, useState, useEffect } from "react"
+import { Dialog, Transition } from "@headlessui/react"
 import { NumericFormat } from "react-number-format"
-import { useSalesStore } from "../../stores/salesStore"
-import { useToast } from "../../contexts/ToastContext"
-import { formatCurrency } from "../../lib/formatters"
 import Button from "../common/Button"
-import { XMarkIcon, PercentBadgeIcon, BanknotesIcon, CheckCircleIcon } from "@heroicons/react/24/outline"
+import {
+  XMarkIcon,
+  PercentBadgeIcon,
+  CurrencyDollarIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline"
 
-const DiscountModal = () => {
-  const { showDiscountModal, setShowDiscountModal, cartTotal, applyDiscount, cartDiscount } = useSalesStore()
-  const { showToast } = useToast()
-
-  const [discountType, setDiscountType] = useState("percentage") // "percentage" o "amount"
-  const [discountValue, setDiscountValue] = useState("")
-  const [calculatedDiscount, setCalculatedDiscount] = useState(0)
-
-  const inputRef = useRef(null)
+const DiscountModal = ({ isOpen, onClose, subtotal, onApplyDiscount }) => {
+  const [discountType, setDiscountType] = useState("percentage") // "percentage" or "amount"
+  const [discountValue, setDiscountValue] = useState(0)
+  const [error, setError] = useState("")
 
   // Reset cuando se abre el modal
   useEffect(() => {
-    // Si ya hay descuento aplicado, calcularlo para mostrarlo
-    if (cartDiscount > 0) {
-      const percentage = (cartDiscount / cartTotal) * 100
-      if (Math.abs(Math.round(percentage) - percentage) < 0.01) {
-        // Es un porcentaje exacto
-        setDiscountType("percentage")
-        setDiscountValue(Math.round(percentage).toString())
-      } else {
-        // Es un monto fijo
-        setDiscountType("amount")
-        setDiscountValue(cartDiscount.toString())
-      }
-    } else {
-      setDiscountValue("")
+    if (isOpen) {
+      setDiscountType("percentage")
+      setDiscountValue(0)
+      setError("")
     }
-    setCalculatedDiscount(cartDiscount)
+  }, [isOpen])
 
-    // Focus en el input después de un pequeño delay
-    setTimeout(() => {
-      inputRef.current?.focus()
-    }, 100)
-  }, [cartDiscount, cartTotal])
+  const handleValueChange = (values) => {
+    const { floatValue } = values
+    setDiscountValue(floatValue || 0)
+    setError("")
+  }
 
-  // Calcular descuento cuando cambia el valor o tipo
-  useEffect(() => {
-    const value = Number.parseFloat(discountValue) || 0
-
+  const calculateDiscountAmount = () => {
     if (discountType === "percentage") {
-      // Validar que no sea mayor a 100%
-      if (value > 100) {
-        setCalculatedDiscount(cartTotal)
-      } else if (value < 0) {
-        setCalculatedDiscount(0)
-      } else {
-        const discount = (cartTotal * value) / 100
-        setCalculatedDiscount(Math.round(discount * 100) / 100)
-      }
-    } else {
-      // Monto fijo
-      if (value > cartTotal) {
-        setCalculatedDiscount(cartTotal)
-      } else if (value < 0) {
-        setCalculatedDiscount(0)
-      } else {
-        setCalculatedDiscount(Math.round(value * 100) / 100)
-      }
+      return (subtotal * discountValue) / 100
     }
-  }, [discountValue, discountType, cartTotal])
+    return discountValue
+  }
 
-  const handleApplyDiscount = () => {
-    const value = Number.parseFloat(discountValue) || 0
+  const finalDiscountAmount = calculateDiscountAmount()
+  const finalTotal = Math.max(0, subtotal - finalDiscountAmount)
 
+  const handleApply = () => {
     // Validaciones
-    if (value < 0) {
-      showToast("El descuento no puede ser negativo", "error")
+    if (!discountValue || discountValue <= 0) {
+      setError("El descuento debe ser mayor a 0")
       return
     }
 
-    if (discountType === "percentage" && value > 100) {
-      showToast("El descuento no puede ser mayor a 100%", "error")
+    if (discountType === "percentage" && discountValue > 100) {
+      setError("El porcentaje no puede ser mayor a 100%")
       return
     }
 
-    if (discountType === "amount" && value > cartTotal) {
-      showToast("El descuento no puede ser mayor al subtotal", "error")
+    if (discountType === "amount" && discountValue > subtotal) {
+      setError("El descuento no puede ser mayor al subtotal")
       return
     }
 
     // Aplicar descuento
-    applyDiscount(calculatedDiscount)
-
-    if (calculatedDiscount > 0) {
-      showToast(`Descuento de ${formatCurrency(calculatedDiscount)} aplicado correctamente`, "success")
-    } else {
-      showToast("Descuento removido", "info")
-    }
-
-    setShowDiscountModal(false)
+    onApplyDiscount(finalDiscountAmount)
+    onClose()
   }
 
   const handleRemoveDiscount = () => {
-    applyDiscount(0)
-    setDiscountValue("")
-    setCalculatedDiscount(0)
-    showToast("Descuento removido", "info")
-    setShowDiscountModal(false)
+    onApplyDiscount(0)
+    onClose()
   }
-
-  const handleAmountChange = (values) => {
-    const { floatValue } = values
-    setDiscountValue(floatValue?.toString() || "")
-  }
-
-  const finalTotal = cartTotal - calculatedDiscount
-
-  if (!showDiscountModal) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Overlay */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm"
-        onClick={() => setShowDiscountModal(false)}
-      />
+    <Transition appear show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black bg-opacity-25 backdrop-blur-sm" />
+        </Transition.Child>
 
-      {/* Modal Panel */}
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gradient-to-r from-purple-50 to-pink-50">
-          <h3 className="text-xl font-semibold text-gray-900">Aplicar Descuento</h3>
-          <button
-            onClick={() => setShowDiscountModal(false)}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-white"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Contenido */}
-        <div className="p-6 space-y-6">
-          {/* Tipo de descuento */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Tipo de descuento</label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setDiscountType("percentage")}
-                className={`flex items-center justify-center p-4 border-2 rounded-xl transition-all ${
-                  discountType === "percentage"
-                    ? "border-purple-500 bg-purple-50 text-purple-700 shadow-md"
-                    : "border-gray-200 hover:border-purple-300 hover:bg-purple-50"
-                }`}
-              >
-                <PercentBadgeIcon className="h-6 w-6 mr-2" />
-                <span className="font-medium">Porcentaje</span>
-              </button>
-              <button
-                onClick={() => setDiscountType("amount")}
-                className={`flex items-center justify-center p-4 border-2 rounded-xl transition-all ${
-                  discountType === "amount"
-                    ? "border-green-500 bg-green-50 text-green-700 shadow-md"
-                    : "border-gray-200 hover:border-green-300 hover:bg-green-50"
-                }`}
-              >
-                <BanknotesIcon className="h-6 w-6 mr-2" />
-                <span className="font-medium">Monto</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Input de valor */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {discountType === "percentage" ? "Porcentaje (%)" : "Monto ($)"}
-            </label>
-            {discountType === "percentage" ? (
-              <input
-                ref={inputRef}
-                type="number"
-                value={discountValue}
-                onChange={(e) => setDiscountValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleApplyDiscount()
-                  if (e.key === "Escape") setShowDiscountModal(false)
-                }}
-                className="w-full px-4 py-3 text-lg font-medium border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
-                placeholder="0"
-                min="0"
-                max="100"
-                step="0.01"
-              />
-            ) : (
-              <NumericFormat
-                getInputRef={inputRef}
-                value={discountValue}
-                onValueChange={handleAmountChange}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleApplyDiscount()
-                  if (e.key === "Escape") setShowDiscountModal(false)
-                }}
-                thousandSeparator="."
-                decimalSeparator=","
-                prefix="$ "
-                decimalScale={2}
-                fixedDecimalScale
-                allowNegative={false}
-                className="w-full px-4 py-3 text-lg font-medium border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
-                placeholder="$ 0,00"
-              />
-            )}
-          </div>
-
-          {/* Vista previa del cálculo */}
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-            <h4 className="text-sm font-medium text-blue-900 mb-3">Vista previa</h4>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-blue-700">Subtotal:</span>
-                <span className="font-medium text-blue-900">{formatCurrency(cartTotal)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-red-700">Descuento:</span>
-                <span className="font-medium text-red-600">
-                  -{formatCurrency(calculatedDiscount)}
-                  {discountType === "percentage" && discountValue && (
-                    <span className="ml-1 text-xs">({Number.parseFloat(discountValue).toFixed(1)}%)</span>
-                  )}
-                </span>
-              </div>
-              <div className="border-t border-blue-200 pt-2">
-                <div className="flex justify-between">
-                  <span className="font-semibold text-blue-900">Total:</span>
-                  <span className="font-bold text-lg text-blue-900">{formatCurrency(finalTotal)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex space-x-3">
-          {cartDiscount > 0 && (
-            <Button
-              variant="outline"
-              onClick={handleRemoveDiscount}
-              className="flex-1 text-red-600 border-red-200 hover:bg-red-50 bg-transparent"
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
             >
-              Quitar Descuento
-            </Button>
-          )}
-          <Button
-            onClick={handleApplyDiscount}
-            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-          >
-            <CheckCircleIcon className="h-5 w-5 mr-2" />
-            Aplicar
-          </Button>
+              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <PercentBadgeIcon className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <Dialog.Title as="h3" className="text-xl font-semibold text-gray-900">
+                        Aplicar Descuento
+                      </Dialog.Title>
+                      <p className="text-sm text-gray-500 mt-0.5">Por porcentaje o monto fijo</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={onClose}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
+                  >
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* Contenido */}
+                <div className="p-6 space-y-6">
+                  {/* Tipo de descuento */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Tipo de descuento</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountType("percentage")
+                          setDiscountValue(0)
+                          setError("")
+                        }}
+                        className={`flex items-center justify-center p-4 border-2 rounded-xl transition-all ${
+                          discountType === "percentage"
+                            ? "border-orange-500 bg-orange-50 shadow-md"
+                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <PercentBadgeIcon
+                          className={`h-6 w-6 mr-2 ${
+                            discountType === "percentage" ? "text-orange-600" : "text-gray-400"
+                          }`}
+                        />
+                        <span
+                          className={`font-medium ${
+                            discountType === "percentage" ? "text-orange-900" : "text-gray-600"
+                          }`}
+                        >
+                          Porcentaje
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDiscountType("amount")
+                          setDiscountValue(0)
+                          setError("")
+                        }}
+                        className={`flex items-center justify-center p-4 border-2 rounded-xl transition-all ${
+                          discountType === "amount"
+                            ? "border-orange-500 bg-orange-50 shadow-md"
+                            : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        <CurrencyDollarIcon
+                          className={`h-6 w-6 mr-2 ${discountType === "amount" ? "text-orange-600" : "text-gray-400"}`}
+                        />
+                        <span
+                          className={`font-medium ${discountType === "amount" ? "text-orange-900" : "text-gray-600"}`}
+                        >
+                          Monto
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Valor del descuento */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {discountType === "percentage" ? "Porcentaje de descuento" : "Monto del descuento"}
+                    </label>
+                    {discountType === "percentage" ? (
+                      <NumericFormat
+                        value={discountValue || ""}
+                        onValueChange={handleValueChange}
+                        thousandSeparator="."
+                        decimalSeparator=","
+                        suffix=" %"
+                        decimalScale={2}
+                        allowNegative={false}
+                        className={`w-full px-4 py-4 border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-xl font-bold text-center ${
+                          error ? "border-red-300 bg-red-50" : "border-gray-300 hover:border-gray-400 bg-white"
+                        }`}
+                        placeholder="0 %"
+                      />
+                    ) : (
+                      <NumericFormat
+                        value={discountValue || ""}
+                        onValueChange={handleValueChange}
+                        thousandSeparator="."
+                        decimalSeparator=","
+                        prefix="$ "
+                        decimalScale={2}
+                        allowNegative={false}
+                        className={`w-full px-4 py-4 border rounded-xl shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all text-xl font-bold text-center ${
+                          error ? "border-red-300 bg-red-50" : "border-gray-300 hover:border-gray-400 bg-white"
+                        }`}
+                        placeholder="$ 0,00"
+                      />
+                    )}
+                    {error && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center">
+                        <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
+                        {error}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Resumen */}
+                  {discountValue > 0 && !error && (
+                    <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
+                      <h4 className="text-sm font-semibold text-orange-900 mb-3">Resumen</h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-orange-700">Subtotal:</span>
+                          <span className="font-medium text-orange-900">
+                            {new Intl.NumberFormat("es-AR", {
+                              style: "currency",
+                              currency: "ARS",
+                            }).format(subtotal)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-orange-700">Descuento:</span>
+                          <span className="font-medium text-red-600">
+                            -{" "}
+                            {new Intl.NumberFormat("es-AR", {
+                              style: "currency",
+                              currency: "ARS",
+                            }).format(finalDiscountAmount)}
+                          </span>
+                        </div>
+                        <div className="border-t border-orange-300 pt-2">
+                          <div className="flex justify-between">
+                            <span className="text-base font-bold text-orange-900">Total:</span>
+                            <span className="text-base font-bold text-orange-900">
+                              {new Intl.NumberFormat("es-AR", {
+                                style: "currency",
+                                currency: "ARS",
+                              }).format(finalTotal)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRemoveDiscount}
+                    className="flex-1 py-3 text-sm font-medium rounded-xl bg-transparent"
+                  >
+                    Quitar Descuento
+                  </Button>
+                  <Button
+                    onClick={handleApply}
+                    className="flex-1 py-3 text-sm font-medium bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl shadow-lg"
+                  >
+                    <CheckCircleIcon className="h-5 w-5 mr-2" />
+                    Aplicar
+                  </Button>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
         </div>
-      </div>
-    </div>
+      </Dialog>
+    </Transition>
   )
 }
 

@@ -30,7 +30,7 @@ const PaymentModal = () => {
     showPaymentModal,
     setShowPaymentModal,
     cartTotal,
-    cartDiscount, // Added cartDiscount from updates
+    cartDiscount, // Ensure cartDiscount is available for finalTotal calculation
     cartTax, // Ensure cartTax is available for finalTotal calculation
     paymentMethod,
     setPaymentMethod,
@@ -69,8 +69,8 @@ const PaymentModal = () => {
 
   const amountInputRef = useRef(null)
 
-  // FIX: Calculando total final con descuento
-  const finalTotal = cartTotal - cartDiscount + cartTax // Corrected: Now includes cartDiscount
+  // FIX: Updated finalTotal calculation to include discount
+  const finalTotal = cartTotal - cartDiscount + cartTax
 
   // FIX: Define 'change' here
   const change = paymentData.amountReceived - finalTotal
@@ -177,7 +177,7 @@ const PaymentModal = () => {
       isMounted = false
       clearTimeout(timeoutId)
     }
-  }, [customer, isDefaultCustomer, getCustomerBalance]) // Corrected dependency array for lint/correctness/useExhaustiveDependencies
+  }, [customer, isDefaultCustomer, getCustomerBalance])
 
   // Reset payment data when modal opens
   useEffect(() => {
@@ -428,7 +428,7 @@ const PaymentModal = () => {
                           <input
                             type="checkbox"
                             checked={multiplePaymentMode}
-                            onChange={(e) => setMultiplePaymentMode(e.target.checked)} // Update from updates
+                            onChange={(e) => handleToggleMultiplePayments(e.target.checked)}
                             className="sr-only"
                           />
                           <div
@@ -459,18 +459,6 @@ const PaymentModal = () => {
 
                   {/* Contenido Principal */}
                   <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* Total a pagar con descuento visible */}
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white text-center">
-                      <p className="text-blue-100 text-sm font-medium mb-1">Total a pagar</p>
-                      <p className="text-3xl font-bold mb-2">{formatCurrency(finalTotal)}</p>
-                      {cartDiscount > 0 && (
-                        <div className="text-sm text-blue-100 space-y-1">
-                          <p>Subtotal: {formatCurrency(cartTotal)}</p>
-                          <p className="text-yellow-200">Descuento: -{formatCurrency(cartDiscount)}</p>
-                        </div>
-                      )}
-                    </div>
-
                     {/* MODO PAGO SIMPLE: Total + Información de validación para múltiples pagos */}
                     {!multiplePaymentMode && (
                       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -1112,21 +1100,20 @@ const PaymentModal = () => {
               </Transition.Child>
             </div>
           </div>
+          {/* Customer Select Modal (always rendered but hidden) */}
+          <CustomerSelectModal
+            show={showCustomerSelector}
+            onClose={() => setShowCustomerSelector(false)}
+            onSelectCustomer={handleCustomerSelect}
+          />
         </Dialog>
       </Transition>
 
-      {/* Modales secundarios */}
-      <CustomerSelectModal
-        isOpen={showCustomerSelector} // Updated from show to isOpen
-        onClose={() => setShowCustomerSelector(false)}
-        onSelectCustomer={(customer) => {
-          // Updated from onSelectCustomer={handleCustomerSelect} to inline function
-          setCustomer(customer)
-          setShowCustomerSelector(false)
-        }}
+      <TicketPrintModal
+        isOpen={showTicketPrintModal}
+        onClose={() => setShowTicketPrintModal(false)}
+        saleData={lastCompletedSale}
       />
-
-      <TicketPrintModal />
     </>
   )
 }
