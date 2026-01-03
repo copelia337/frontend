@@ -15,6 +15,11 @@ import {
   DocumentTextIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
+  CreditCardIcon,
+  ArrowUpCircleIcon,
+  ArrowDownCircleIcon,
+  ShoppingCartIcon,
+  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline"
 
 const CashSessionDetails = ({ isOpen, session, onClose }) => {
@@ -84,7 +89,7 @@ const CashSessionDetails = ({ isOpen, session, onClose }) => {
   const tabs = [
     { id: "summary", name: "Resumen", icon: ChartBarIcon },
     { id: "movements", name: "Movimientos", icon: ListBulletIcon },
-    { id: "earnings", name: "Ganancias", icon: BanknotesIcon },
+    { id: "earnings", name: "Resumen de Sesión", icon: BanknotesIcon },
   ]
 
   if (loading) {
@@ -451,10 +456,10 @@ const CashSessionDetails = ({ isOpen, session, onClose }) => {
                                     Monto
                                   </th>
                                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Fecha/Hora
+                                    Usuario
                                   </th>
                                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    Usuario
+                                    Fecha
                                   </th>
                                 </tr>
                               </thead>
@@ -463,29 +468,30 @@ const CashSessionDetails = ({ isOpen, session, onClose }) => {
                                   <tr key={movement.id} className="hover:bg-gray-50 transition-colors">
                                     <td className="px-6 py-4 whitespace-nowrap">
                                       <div className="flex items-center">
-                                        <span className="text-lg mr-2">{getMovementIcon(movement.type)}</span>
+                                        <span className="text-xl mr-2">{getMovementIcon(movement.type)}</span>
                                         <span className="text-sm font-medium text-gray-900">
                                           {getMovementLabel(movement.type)}
                                         </span>
                                       </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                      <div className="text-sm text-gray-900">{movement.description}</div>
-                                      {movement.reference && (
-                                        <div className="text-sm text-gray-500">Ref: {movement.reference}</div>
+                                      <div className="text-sm text-gray-900">{movement.description || "-"}</div>
+                                      {movement.payment_method && (
+                                        <div className="text-xs text-gray-500 mt-1">
+                                          Método: {movement.payment_method}
+                                        </div>
                                       )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className={`text-sm font-semibold ${getMovementColor(movement.amount)}`}>
-                                        {Number(movement.amount) > 0 ? "+" : ""}
-                                        {formatCurrency(movement.amount || 0)}
-                                      </div>
+                                      <span className={`text-sm font-medium ${getMovementColor(movement.amount)}`}>
+                                        {formatCurrency(Math.abs(movement.amount))}
+                                      </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="text-sm text-gray-900">{formatDateTime(movement.created_at)}</div>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {movement.user_name || "-"}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                      <div className="text-sm text-gray-900">{movement.user_name || "N/A"}</div>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                      {formatDateTime(movement.created_at)}
                                     </td>
                                   </tr>
                                 ))}
@@ -497,93 +503,239 @@ const CashSessionDetails = ({ isOpen, session, onClose }) => {
                     </div>
                   )}
 
-                  {/* Tab: Ganancias */}
+                  {/* Tab: Resumen de Sesión (antes Ganancias) */}
                   {activeTab === "earnings" && (
                     <div className="space-y-6">
-                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
-                        <h4 className="text-lg font-medium text-green-900 mb-4 flex items-center">
-                          <BanknotesIcon className="h-6 w-6 mr-2" />
-                          Resumen de Ganancias
-                        </h4>
+                      {earnings.totalEarnings !== undefined ? (
+                        <>
+                          <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-6 rounded-2xl shadow-lg text-white">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <div className="bg-white bg-opacity-20 p-3 rounded-xl mr-4">
+                                  <CurrencyDollarIcon className="h-8 w-8" />
+                                </div>
+                                <div>
+                                  <p className="text-sm opacity-90">Total General de Caja</p>
+                                  <p className="text-3xl font-bold">{formatCurrency(earnings.totalGeneralCash || 0)}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm opacity-90">Ganancia Neta</p>
+                                <p className="text-2xl font-bold">{formatCurrency(earnings.totalEarnings || 0)}</p>
+                              </div>
+                            </div>
+                          </div>
 
-                        {earnings.totalEarnings !== undefined ? (
-                          <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                              <div className="bg-white p-4 rounded-lg border shadow-sm">
-                                <p className="text-sm text-gray-600">Ventas en Efectivo</p>
-                                <p className="text-xl font-bold text-green-700">
+                          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                              <ShoppingCartIcon className="h-6 w-6 mr-2 text-blue-600" />
+                              Desglose de Ventas por Método de Pago
+                            </h4>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <BanknotesIcon className="h-8 w-8 text-green-600" />
+                                  <span className="text-2xl">💵</span>
+                                </div>
+                                <p className="text-sm text-green-700 font-medium">Efectivo</p>
+                                <p className="text-2xl font-bold text-green-800">
                                   {formatCurrency(earnings.sales?.cash || 0)}
                                 </p>
-                                <p className="text-xs text-gray-500">{earnings.sales?.count || 0} transacciones</p>
                               </div>
 
-                              <div className="bg-white p-4 rounded-lg border shadow-sm">
-                                <p className="text-sm text-gray-600">Ventas con Tarjeta</p>
-                                <p className="text-xl font-bold text-blue-700">
+                              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <CreditCardIcon className="h-8 w-8 text-blue-600" />
+                                  <span className="text-2xl">💳</span>
+                                </div>
+                                <p className="text-sm text-blue-700 font-medium">Tarjeta</p>
+                                <p className="text-2xl font-bold text-blue-800">
                                   {formatCurrency(earnings.sales?.card || 0)}
                                 </p>
                               </div>
 
-                              <div className="bg-white p-4 rounded-lg border shadow-sm">
-                                <p className="text-sm text-gray-600">Ingresos Adicionales</p>
-                                <p className="text-xl font-bold text-purple-700">
-                                  {formatCurrency(earnings.deposits?.amount || 0)}
+                              <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <ArrowUpCircleIcon className="h-8 w-8 text-purple-600" />
+                                  <span className="text-2xl">🏦</span>
+                                </div>
+                                <p className="text-sm text-purple-700 font-medium">Transferencia</p>
+                                <p className="text-2xl font-bold text-purple-800">
+                                  {formatCurrency(earnings.sales?.transfer || 0)}
                                 </p>
                               </div>
 
-                              <div className="bg-white p-4 rounded-lg border shadow-sm">
-                                <p className="text-sm text-gray-600">Pagos Cta. Cte.</p>
-                                <p className="text-xl font-bold text-orange-700">
-                                  {formatCurrency(earnings.accountPayments?.amount || 0)}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                              <div className="bg-white p-4 rounded-lg border shadow-sm">
-                                <p className="text-sm text-gray-600">Gastos</p>
-                                <p className="text-xl font-bold text-red-700">
-                                  -{formatCurrency(earnings.expenses?.amount || 0)}
-                                </p>
-                              </div>
-
-                              <div className="bg-white p-4 rounded-lg border shadow-sm">
-                                <p className="text-sm text-gray-600">Retiros</p>
-                                <p className="text-xl font-bold text-orange-700">
-                                  -{formatCurrency(earnings.withdrawals?.amount || 0)}
+                              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <DocumentTextIcon className="h-8 w-8 text-orange-600" />
+                                  <span className="text-2xl">📝</span>
+                                </div>
+                                <p className="text-sm text-orange-700 font-medium">Cuenta Corriente</p>
+                                <p className="text-2xl font-bold text-orange-800">
+                                  {formatCurrency(earnings.sales?.accountPayable || 0)}
                                 </p>
                               </div>
                             </div>
 
-                            <div className="bg-gradient-to-r from-green-100 to-emerald-100 p-6 rounded-xl border border-green-300 shadow-sm">
+                            <div className="mt-4 pt-4 border-t border-gray-200">
                               <div className="flex justify-between items-center">
-                                <span className="text-lg font-medium text-green-900">Total de Ganancias Netas:</span>
-                                <span className="text-2xl font-bold text-green-900">
-                                  {formatCurrency(earnings.totalEarnings)}
-                                </span>
+                                <div>
+                                  <p className="text-sm text-gray-600">Total de Ventas</p>
+                                  <p className="text-xs text-gray-500">{earnings.sales?.count || 0} transacciones</p>
+                                </div>
+                                <p className="text-2xl font-bold text-gray-900">
+                                  {formatCurrency(earnings.sales?.total || 0)}
+                                </p>
                               </div>
                             </div>
-                          </>
-                        ) : (
-                          <div className="text-center py-12 text-gray-500">
-                            <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                            <p className="mt-2 text-lg font-medium">No hay información detallada de ganancias</p>
-                            <p className="text-sm">
-                              Esta funcionalidad está disponible para sesiones cerradas recientemente
-                            </p>
                           </div>
-                        )}
-                      </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                <ArrowUpCircleIcon className="h-6 w-6 mr-2 text-green-600" />
+                                Ingresos
+                              </h4>
+
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                                  <span className="text-sm text-gray-700">Depósitos / Otros Ingresos</span>
+                                  <span className="font-semibold text-green-700">
+                                    {formatCurrency(earnings.deposits?.amount || 0)}
+                                  </span>
+                                </div>
+
+                                <div className="flex justify-between items-center p-3 bg-emerald-50 rounded-lg">
+                                  <span className="text-sm text-gray-700">Pagos en Cuenta Corriente</span>
+                                  <span className="font-semibold text-emerald-700">
+                                    {formatCurrency(earnings.accountPayments?.amount || 0)}
+                                  </span>
+                                </div>
+
+                                <div className="pt-3 mt-3 border-t border-gray-200">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-gray-900">Total Ingresos</span>
+                                    <span className="text-lg font-bold text-green-600">
+                                      {formatCurrency(earnings.totalIncome || 0)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                              <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                <ArrowDownCircleIcon className="h-6 w-6 mr-2 text-red-600" />
+                                Egresos
+                              </h4>
+
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                                  <span className="text-sm text-gray-700">Gastos</span>
+                                  <span className="font-semibold text-red-700">
+                                    -{formatCurrency(earnings.expenses?.amount || 0)}
+                                  </span>
+                                </div>
+
+                                <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                                  <span className="text-sm text-gray-700">Retiros</span>
+                                  <span className="font-semibold text-orange-700">
+                                    -{formatCurrency(earnings.withdrawals?.amount || 0)}
+                                  </span>
+                                </div>
+
+                                {earnings.cancellations?.amount > 0 && (
+                                  <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                                    <span className="text-sm text-gray-700">Cancelaciones</span>
+                                    <span className="font-semibold text-yellow-700">
+                                      -{formatCurrency(earnings.cancellations?.amount || 0)}
+                                    </span>
+                                  </div>
+                                )}
+
+                                <div className="pt-3 mt-3 border-t border-gray-200">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-gray-900">Total Egresos</span>
+                                    <span className="text-lg font-bold text-red-600">
+                                      -{formatCurrency(earnings.totalOutcome || 0)}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gradient-to-br from-gray-50 to-slate-100 border border-gray-200 rounded-xl p-6 shadow-sm">
+                            <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                              <BanknotesIcon className="h-6 w-6 mr-2 text-gray-700" />
+                              Efectivo Físico
+                            </h4>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                                <p className="text-sm text-gray-600 mb-1">Efectivo Esperado</p>
+                                <p className="text-xl font-bold text-gray-800">
+                                  {formatCurrency(earnings.physicalCash?.expected || 0)}
+                                </p>
+                              </div>
+
+                              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                                <p className="text-sm text-gray-600 mb-1">Efectivo Contado</p>
+                                <p className="text-xl font-bold text-blue-800">
+                                  {formatCurrency(earnings.physicalCash?.counted || 0)}
+                                </p>
+                              </div>
+
+                              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                                <p className="text-sm text-gray-600 mb-1">Diferencia</p>
+                                <p
+                                  className={`text-xl font-bold ${
+                                    (earnings.physicalCash?.difference || 0) === 0
+                                      ? "text-green-700"
+                                      : (earnings.physicalCash?.difference || 0) > 0
+                                        ? "text-blue-700"
+                                        : "text-red-700"
+                                  }`}
+                                >
+                                  {(earnings.physicalCash?.difference || 0) === 0
+                                    ? "Sin diferencia"
+                                    : formatCurrency(earnings.physicalCash?.difference || 0)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gradient-to-r from-green-100 to-emerald-100 p-6 rounded-xl border border-green-300 shadow-md">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-sm text-green-700 mb-1">Ganancia Neta de la Sesión</p>
+                                <p className="text-xs text-green-600">Total Ingresos - Total Egresos</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-3xl font-bold text-green-900">
+                                  {formatCurrency(earnings.totalEarnings || 0)}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center py-12 text-gray-500">
+                          <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
+                          <p className="mt-2 text-lg font-medium">No hay información detallada disponible</p>
+                          <p className="text-sm mt-1">
+                            Esta funcionalidad está disponible para sesiones cerradas recientemente
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
                 {/* Footer Fijo */}
-                <div className="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
-                  <Button
-                    onClick={onClose}
-                    className="flex-1 py-3 text-sm font-medium bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl shadow-lg"
-                  >
+                <div className="border-t border-gray-200 p-4 bg-gray-50">
+                  <Button onClick={onClose} className="w-full">
                     Cerrar
                   </Button>
                 </div>
