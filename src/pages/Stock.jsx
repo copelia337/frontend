@@ -11,6 +11,7 @@ import Button from "../components/common/Button"
 import Pagination from "../components/common/Pagination"
 import ProductForm from "../components/stock/ProductForm"
 import StockMovementForm from "../components/stock/StockMovementForm"
+import StockCapitalModal from "../components/stock/StockCapitalModal"
 import StockAlerts from "../components/stock/StockAlerts"
 import StockMovementsList from "../components/stock/StockMovementsList"
 import ProductSearchStock from "../components/stock/ProductSearchStock"
@@ -24,6 +25,7 @@ import {
   ArrowsRightLeftIcon,
   ScaleIcon,
   PhotoIcon,
+  BanknotesIcon,
 } from "@heroicons/react/24/outline"
 
 const Stock = () => {
@@ -41,6 +43,7 @@ const Stock = () => {
   const [activeTab, setActiveTab] = useState("products")
   const [showProductForm, setShowProductForm] = useState(false)
   const [showMovementForm, setShowMovementForm] = useState(false)
+  const [showStockCapitalModal, setShowStockCapitalModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [selectedProductForMovement, setSelectedProductForMovement] = useState(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -283,7 +286,14 @@ const Stock = () => {
           <h1 className="text-2xl font-bold text-gray-900">Gestión de Stock</h1>
           <p className="mt-1 text-sm text-gray-500">Administra tu inventario y controla los movimientos de stock</p>
         </div>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setShowStockCapitalModal(true)}
+          >
+            <BanknotesIcon className="h-4 w-4 mr-2" />
+            Calcular capital
+          </Button>
           <Button onClick={() => handleOpenProductForm()}>
             <PlusIcon className="h-4 w-4 mr-2" />
             Nuevo Producto
@@ -528,6 +538,11 @@ const Stock = () => {
         selectedProduct={selectedProductForMovement}
         onClose={handleCloseMovementForm}
         onSave={() => {}}
+      />
+
+      <StockCapitalModal
+        isOpen={showStockCapitalModal}
+        onClose={() => setShowStockCapitalModal(false)}
       />
 
       {/* Estilos */}

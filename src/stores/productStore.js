@@ -3,9 +3,10 @@ import { productsService } from "../services/productsService"
 
 export const useProductStore = create((set, get) => ({
   products: [],
-  topSellingProducts: [], 
-  searchResults: [], 
+  topSellingProducts: [],
+  searchResults: [],
   loading: false,
+  stockCapitalLoading: false,
   error: null,
   lastFetch: null,
   lastFetchTopSelling: null, 
@@ -29,6 +30,21 @@ export const useProductStore = create((set, get) => ({
   // Acciones
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+
+  fetchStockCapital: async () => {
+    set({ stockCapitalLoading: true, error: null })
+    try {
+      const response = await productsService.getStockCapital()
+      set({ stockCapitalLoading: false })
+      return response.data.data
+    } catch (error) {
+      set({
+        stockCapitalLoading: false,
+        error: error.response?.data?.message || error.message || "Error al calcular capital en stock",
+      })
+      throw error
+    }
+  },
 
   fetchTopSellingProducts: async (limit = 10, forceRefresh = false) => {
     const state = get()
@@ -353,6 +369,7 @@ export const useProductStore = create((set, get) => ({
       topSellingProducts: [],
       searchResults: [],
       loading: false,
+      stockCapitalLoading: false,
       error: null,
       lastFetch: null,
       lastFetchTopSelling: null,

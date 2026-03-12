@@ -50,4 +50,9 @@ export const productsService = {
   async getStockStats() {
     return api.get("/products/stats")
   },
+
+  // Calcular capital total en stock (precio de venta × stock por producto)
+  async getStockCapital() {
+    return api.get("/products/stock-capital")
+  },
 }
