@@ -13,11 +13,19 @@ import {
   CubeIcon,
   ExclamationCircleIcon,
   ScaleIcon,
+  TagIcon,
+  CurrencyDollarIcon,
 } from "@heroicons/react/24/outline"
+
+const TABS = [
+  { id: "venta", label: "Precio de venta", icon: CurrencyDollarIcon },
+  { id: "costo", label: "Precio de costo", icon: TagIcon },
+]
 
 const StockCapitalModal = ({ isOpen, onClose }) => {
   const { fetchStockCapital, stockCapitalLoading, error, clearError } = useProductStore()
   const [data, setData] = useState(null)
+  const [activeTab, setActiveTab] = useState("venta")
 
   const loadCapital = useCallback(async () => {
     setData(null)
@@ -79,7 +87,7 @@ const StockCapitalModal = ({ isOpen, onClose }) => {
                         Capital en stock
                       </Dialog.Title>
                       <p className="text-sm text-gray-500">
-                        Valor total del inventario a precio de venta
+                        Valor total del inventario según precio de venta o costo
                       </p>
                     </div>
                   </div>
@@ -101,7 +109,7 @@ const StockCapitalModal = ({ isOpen, onClose }) => {
                         Calculando capital en stock...
                       </p>
                       <p className="mt-1 text-xs text-gray-500">
-                        Sumando stock × precio de venta de cada producto
+                        Calculando total por precio de venta y por costo
                       </p>
                     </div>
                   )}
@@ -123,10 +131,41 @@ const StockCapitalModal = ({ isOpen, onClose }) => {
 
                   {!stockCapitalLoading && !error && data && (
                     <div className="space-y-6">
-                      <div className="rounded-xl bg-primary-50 border border-primary-100 p-6">
-                        <p className="text-sm font-medium text-primary-700">Total en pesos (stock × precio de venta)</p>
-                        <p className="mt-2 text-3xl font-bold text-primary-900 tabular-nums">
-                          {formatCurrency(data.totalCapital)}
+                      {/* Tabs: Precio de venta / Precio de costo */}
+                      <div className="border-b border-gray-200">
+                        <nav className="-mb-px flex gap-1" aria-label="Tipo de precio">
+                          {TABS.map((tab) => (
+                            <button
+                              key={tab.id}
+                              type="button"
+                              onClick={() => setActiveTab(tab.id)}
+                              className={`flex items-center gap-2 py-3 px-4 border-b-2 font-medium text-sm transition-colors rounded-t-lg ${
+                                activeTab === tab.id
+                                  ? "border-primary-500 text-primary-600 bg-primary-50/50"
+                                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                              }`}
+                            >
+                              <tab.icon className="h-4 w-4" />
+                              {tab.label}
+                            </button>
+                          ))}
+                        </nav>
+                      </div>
+
+                      <div className={`rounded-xl border p-6 ${
+                        activeTab === "venta"
+                          ? "bg-primary-50 border-primary-100"
+                          : "bg-emerald-50 border-emerald-100"
+                      }`}>
+                        <p className="text-sm font-medium text-gray-700">
+                          {activeTab === "venta"
+                            ? "Total en pesos (stock × precio de venta)"
+                            : "Total en pesos (stock × precio de costo)"}
+                        </p>
+                        <p className="mt-2 text-3xl font-bold text-gray-900 tabular-nums">
+                          {formatCurrency(
+                            activeTab === "venta" ? data.totalCapitalVenta : data.totalCapitalCosto
+                          )}
                         </p>
                         <p className="mt-2 text-sm text-gray-600">
                           {data.productCount} producto{data.productCount !== 1 ? "s" : ""} con stock
@@ -147,7 +186,7 @@ const StockCapitalModal = ({ isOpen, onClose }) => {
                                     Stock
                                   </th>
                                   <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    P. venta
+                                    {activeTab === "venta" ? "P. venta" : "P. costo"}
                                   </th>
                                   <th className="px-4 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Total
@@ -174,10 +213,12 @@ const StockCapitalModal = ({ isOpen, onClose }) => {
                                       )}
                                     </td>
                                     <td className="px-4 py-2.5 text-sm text-gray-600 text-right tabular-nums">
-                                      {formatCurrency(item.price)}
+                                      {formatCurrency(activeTab === "venta" ? item.price : item.cost)}
                                     </td>
                                     <td className="px-4 py-2.5 text-sm font-medium text-gray-900 text-right tabular-nums">
-                                      {formatCurrency(item.value)}
+                                      {formatCurrency(
+                                        activeTab === "venta" ? item.valueVenta : item.valueCosto
+                                      )}
                                     </td>
                                   </tr>
                                 ))}
