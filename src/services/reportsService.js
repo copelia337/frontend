@@ -125,6 +125,22 @@ export const reportsService = {
     return await api.get(url)
   },
 
+  // Ganancias del rango: venta menos costo, con egresos de caja
+  getProfitsReport: async (params = {}) => {
+    const queryParams = new URLSearchParams()
+
+    Object.keys(params).forEach((key) => {
+      if (params[key] !== undefined && params[key] !== null && params[key] !== "") {
+        queryParams.append(key, params[key])
+      }
+    })
+
+    const queryString = queryParams.toString()
+    const url = queryString ? `/reports/profits?${queryString}` : "/reports/profits"
+
+    return await api.get(url)
+  },
+
   // Obtener estadísticas de ventas (desde sales controller)
   getSalesStats: async (params = {}) => {
     const queryParams = new URLSearchParams()

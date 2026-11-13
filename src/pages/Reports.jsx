@@ -9,12 +9,14 @@ import CategoryChart from "../components/reports/CategoryChart"
 import PaymentMethodsChart from "../components/reports/PaymentMethodsChart"
 import SalesHistoryTable from "../components/reports/SalesHistoryTable"
 import SalesAnalysisFilters from "../components/reports/SalesAnalysisFilters"
+import ProfitsReport from "../components/reports/ProfitsReport"
 import {
 CurrencyDollarIcon,
 ShoppingCartIcon,
 ArrowUpIcon,
 ArrowDownIcon,
 ClockIcon,
+ChartBarIcon,
 } from "@heroicons/react/24/outline"
 
 const Reports = () => {
@@ -30,6 +32,7 @@ useEffect(() => {
 
 const tabs = [
   { id: "history", name: "Historial", icon: ClockIcon },
+  { id: "profits", name: "Ganancias", icon: ChartBarIcon },
   { id: "sales", name: "Análisis de Ventas", icon: CurrencyDollarIcon },
 ]
 
@@ -68,32 +71,6 @@ const StatCard = ({ title, value, change, icon: Icon, format = "currency", color
   </div>
 )
 
-if (loading) {
-  return (
-    <div className="flex items-center justify-center min-h-96">
-      <LoadingSpinner size="xl" />
-      <span className="ml-3 text-lg text-gray-600">Generando reportes...</span>
-    </div>
-  )
-}
-
-if (error) {
-  return (
-    <div className="flex items-center justify-center min-h-96">
-      <div className="text-center">
-        <div className="text-red-500 text-lg font-medium mb-2">Error al cargar reportes</div>
-        <div className="text-gray-600 mb-4">{error}</div>
-        <button
-          onClick={() => generateReports()}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-        >
-          Reintentar
-        </button>
-      </div>
-    </div>
-  )
-}
-
 return (
   <div className="space-y-6">
     {/* Header */}
@@ -129,6 +106,12 @@ return (
       </div>
     )}
 
+    {activeTab === "profits" && (
+      <div className="space-y-6">
+        <ProfitsReport />
+      </div>
+    )}
+
     {activeTab === "sales" && (
       <div className="space-y-6">
         {/* Filtros de análisis de ventas */}
@@ -142,6 +125,30 @@ return (
           </div>
         </div>
 
+        {loading && (
+          <div className="flex items-center justify-center min-h-64 bg-white rounded-lg border border-gray-200">
+            <LoadingSpinner size="xl" />
+            <span className="ml-3 text-lg text-gray-600">Generando reportes...</span>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="flex items-center justify-center min-h-64 bg-white rounded-lg border border-gray-200">
+            <div className="text-center">
+              <div className="text-red-500 text-lg font-medium mb-2">Error al cargar reportes</div>
+              <div className="text-gray-600 mb-4">{error}</div>
+              <button
+                onClick={() => generateReports()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!loading && !error && (
+        <>
         {/* Estadísticas principales - Solo ingresos y transacciones */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <StatCard
@@ -191,6 +198,8 @@ return (
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
     )}
   </div>
